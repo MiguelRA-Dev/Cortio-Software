@@ -1,0 +1,22 @@
+const asyncHandler = require('../utils/asyncHandler');
+const reportService = require('../services/reportService');
+
+const summary = asyncHandler(async (req, res) => {
+  const { from, to } = req.query;
+  const data = await reportService.getSummary(req.user.barbershop, from, to);
+  res.json(data);
+});
+
+const byBarber = asyncHandler(async (req, res) => {
+  const { from, to } = req.query;
+  const data = await reportService.getByBarber(req.user.barbershop, from, to);
+  res.json(data);
+});
+
+const byService = asyncHandler(async (req, res) => {
+  const { from, to } = req.query;
+  const data = await reportService.getByService(req.user.barbershop, from, to);
+  res.json(data);
+});
+
+module.exports = { summary, byBarber, byService };

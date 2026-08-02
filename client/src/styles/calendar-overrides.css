@@ -1,0 +1,125 @@
+/* Re-skins react-big-calendar to match BarberMAX's monochrome design tokens. */
+
+/* The library hardcodes #ddd borders across ~15 selectors — reset them all in one pass
+   instead of chasing each one, then layer specific background/color fixes below. */
+.rbc-calendar,
+.rbc-calendar * {
+  border-color: var(--border) !important;
+}
+
+.rbc-calendar {
+  font-family: var(--font-sans, inherit);
+  color: var(--ink);
+}
+
+.rbc-time-view,
+.rbc-time-header,
+.rbc-time-header.rbc-overflowing {
+  border-color: var(--border);
+}
+
+.rbc-time-header-content {
+  border-color: var(--border);
+}
+
+.rbc-header {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 10px 8px;
+  font-weight: 500;
+  font-size: 0.8125rem;
+  text-transform: none;
+}
+
+.rbc-header + .rbc-header {
+  border-color: var(--border);
+}
+
+.rbc-time-content {
+  border-color: var(--border);
+}
+
+.rbc-time-content > * + * > * {
+  border-color: var(--border);
+}
+
+.rbc-timeslot-group {
+  border-color: var(--border);
+  min-height: 56px;
+}
+
+.rbc-time-slot {
+  border-color: transparent;
+}
+
+.rbc-label {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.rbc-time-gutter .rbc-timeslot-group {
+  background: var(--bg);
+}
+
+.rbc-time-gutter,
+.rbc-header-gutter,
+.rbc-time-header-gutter {
+  background-color: var(--surface) !important;
+}
+
+.rbc-day-slot .rbc-time-slot {
+  border-top: none;
+}
+
+.rbc-today {
+  background-color: color-mix(in oklab, var(--ink) 4%, transparent);
+}
+
+.rbc-current-time-indicator {
+  background-color: var(--danger);
+  height: 2px;
+}
+
+.rbc-event {
+  background-color: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  border-radius: 6px;
+  box-shadow: none;
+  padding: 2px 6px;
+}
+
+.rbc-event:focus {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.rbc-event.rbc-selected {
+  background-color: var(--surface-2);
+}
+
+.rbc-event-label {
+  display: none;
+}
+
+.rbc-off-range-bg {
+  background: var(--surface);
+}
+
+.rbc-day-bg + .rbc-day-bg {
+  border-color: var(--border);
+}
+
+.rbc-allday-cell {
+  display: none;
+}
+
+.rbc-overlay {
+  background-color: var(--surface) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.rbc-overlay-header {
+  color: var(--ink);
+}
