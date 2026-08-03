@@ -1,18 +1,29 @@
-const Appointment = require('../models/Appointment');
+const Sale = require('../models/Sale');
 
 async function calculateGross(barber, periodStart, periodEnd) {
   let servicesCount = 0;
   let commissionBase = 0;
+  const saleIds = [];
 
   if (barber.paymentScheme === 'commission' || barber.paymentScheme === 'mixed') {
-    const appointments = await Appointment.find({
+    // Commission is earned on services actually rung up in Ventas (POS), not on appointments
+    // a barber marks "completed" themselves — those two used to be different things.
+    const sales = await Sale.find({
       barber: barber._id,
-      status: 'completed',
-      startTime: { $gte: periodStart, $lte: periodEnd }
-    }).select('priceAtBooking');
+      createdAt: { $gte: periodStart, $lte: periodEnd }
+    }).select('items');
 
-    servicesCount = appointments.length;
-    commissionBase = appointments.reduce((sum, a) => sum + a.priceAtBooking, 0);
+    for (const sale of sales) {
+      let saleHasService = false;
+      for (const item of sale.items) {
+        if (item.itemType === 'Service') {
+          servicesCount += item.quantity;
+          commissionBase += item.subtotal;
+          saleHasService = true;
+        }
+      }
+      if (saleHasService) saleIds.push(sale._id);
+    }
   }
 
   let grossAmount = 0;
@@ -24,7 +35,7 @@ async function calculateGross(barber, periodStart, periodEnd) {
     grossAmount = (barber.baseSalary || 0) + commissionBase * ((barber.commissionRate || 0) / 100);
   }
 
-  return { grossAmount, commissionBase, servicesCount };
+  return { grossAmount, commissionBase, servicesCount, saleIds };
 }
 
 module.exports = { calculateGross };

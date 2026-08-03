@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import LoginPage from './pages/auth/LoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
+import VerifyEmailPage from './pages/auth/VerifyEmailPage'
 import AppLayout from './layouts/AppLayout'
 import DashboardPage from './pages/owner/DashboardPage'
 import AppointmentsPage from './pages/owner/AppointmentsPage'
@@ -12,6 +13,8 @@ import ExpensesPage from './pages/owner/ExpensesPage'
 import PayrollPage from './pages/owner/PayrollPage'
 import ReportsPage from './pages/owner/ReportsPage'
 import SettingsPage from './pages/owner/SettingsPage'
+import BillingPage from './pages/owner/BillingPage'
+import BarberProfilePage from './pages/barber/BarberProfilePage'
 import PublicBookingPage from './pages/booking/PublicBookingPage'
 import CustomersPage from './pages/owner/CustomersPage'
 import ProtectedRoute from './routes/ProtectedRoute'
@@ -21,6 +24,7 @@ function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
       <Route path="/b/:slug" element={<PublicBookingPage />} />
 
       <Route
@@ -42,6 +46,8 @@ function App() {
         <Route path="payroll" element={<PayrollPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="billing" element={<BillingPage />} />
+        <Route path="profile" element={<BarberProfilePage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />

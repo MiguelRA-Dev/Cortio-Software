@@ -1,5 +1,5 @@
 {
-  "name": "barbermax-server",
+  "name": "cortio-server",
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
@@ -19,7 +19,8 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.9.1",
     "morgan": "^1.11.0",
-    "multer": "^2.2.0"
+    "multer": "^2.2.0",
+    "node-cron": "^4.6.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

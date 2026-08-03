@@ -1,4 +1,4 @@
-# BarberMAX
+# Cortio
 
 Mini ERP + agendador de citas para barberías, construido con stack MERN (MongoDB, Express, React, Node).
 

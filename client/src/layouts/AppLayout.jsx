@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import {
   LayoutDashboard,
   Calendar,
@@ -12,12 +13,15 @@ import {
   Wallet,
   BarChart3,
   Settings,
+  CreditCard,
+  UserCircle,
   LogOut,
   Menu,
   X,
 } from 'lucide-react'
 import ThemeToggle from '../components/ui/ThemeToggle'
 import { useAuth } from '../context/AuthContext'
+import { getBillingStatus } from '../api/billing'
 
 const OWNER_NAV_ITEMS = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/app' },
@@ -38,6 +42,8 @@ const BARBER_NAV_ITEMS = [
   { label: 'Mi día', icon: LayoutDashboard, path: '/app' },
   { label: 'Mi agenda', icon: Calendar, path: '/app/appointments' },
   { label: 'Ventas (POS)', icon: ShoppingCart, path: '/app/sales' },
+  { label: 'Mi nómina', icon: Wallet, path: '/app/payroll' },
+  { label: 'Mi perfil', icon: UserCircle, path: '/app/profile' },
 ]
 
 function initials(name) {
@@ -83,7 +89,7 @@ function SidebarContent({ onNavigate }) {
   return (
     <>
       <div className="flex items-center gap-2 px-3 pb-6 pt-1">
-        <span className="text-xl font-semibold tracking-tight text-ink">BarberMAX</span>
+        <span className="text-xl font-semibold tracking-tight text-ink">Cortio</span>
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto">
@@ -103,7 +109,10 @@ function SidebarContent({ onNavigate }) {
           </div>
         </div>
         {user.role === 'owner' && (
-          <NavItem item={{ label: 'Configuración', icon: Settings, path: '/app/settings' }} onClick={onNavigate} />
+          <>
+            <NavItem item={{ label: 'Facturación', icon: CreditCard, path: '/app/billing' }} onClick={onNavigate} />
+            <NavItem item={{ label: 'Configuración', icon: Settings, path: '/app/settings' }} onClick={onNavigate} />
+          </>
         )}
         <button
           type="button"
@@ -115,6 +124,53 @@ function SidebarContent({ onNavigate }) {
         </button>
       </div>
     </>
+  )
+}
+
+function SubscriptionBanner() {
+  const { data: status } = useQuery({ queryKey: ['billing-status'], queryFn: getBillingStatus, staleTime: 60_000 })
+
+  if (!status) return null
+
+  if (status.blocked) {
+    return (
+      <div className="border-b border-danger/30 bg-danger/10 px-4 py-2 text-center text-sm text-danger">
+        Tu suscripción no está activa y el acceso al panel está bloqueado.{' '}
+        <NavLink to="/app/billing" className="font-medium underline">
+          Ir a Facturación
+        </NavLink>
+      </div>
+    )
+  }
+
+  if (status.subscriptionStatus === 'trialing' && status.trialDaysLeft !== null) {
+    return (
+      <div className="border-b border-border bg-surface-2 px-4 py-2 text-center text-sm text-muted">
+        Te quedan {status.trialDaysLeft} día(s) de prueba gratis.{' '}
+        <NavLink to="/app/billing" className="font-medium text-ink underline">
+          Ver facturación
+        </NavLink>
+      </div>
+    )
+  }
+
+  return null
+}
+
+function EmailVerificationBanner() {
+  const { user } = useAuth()
+
+  // Barbers don't go through the self-registration/verification flow — their accounts
+  // are created by the owner, so this only applies to the person who actually signed up.
+  if (user.role !== 'owner' || user.emailVerified) return null
+
+  return (
+    <div className="border-b border-border bg-surface-2 px-4 py-2 text-center text-sm text-muted">
+      Tu correo aún no está verificado.{' '}
+      <NavLink to="/app/settings" className="font-medium text-ink underline">
+        Ver detalles
+      </NavLink>
+    </div>
   )
 }
 
@@ -151,6 +207,8 @@ function AppLayout() {
       )}
 
       <div className="lg:pl-64">
+        <SubscriptionBanner />
+        <EmailVerificationBanner />
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-bg/80 px-4 py-3 backdrop-blur">
           <div className="flex items-center gap-3">
             <button

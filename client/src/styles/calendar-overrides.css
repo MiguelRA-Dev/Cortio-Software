@@ -1,4 +1,4 @@
-/* Re-skins react-big-calendar to match BarberMAX's monochrome design tokens. */
+/* Re-skins react-big-calendar to match Cortio's monochrome design tokens. */
 
 /* The library hardcodes #ddd borders across ~15 selectors — reset them all in one pass
    instead of chasing each one, then layer specific background/color fixes below. */

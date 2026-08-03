@@ -1,21 +1,77 @@
 import { useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { MapPin, Phone, Clock, ArrowLeft, CheckCircle2, UserRound } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { MapPin, Phone, Clock, ArrowLeft, CheckCircle2, UserRound, Star, CalendarClock } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
+import Modal from '../../components/ui/Modal'
 import ThemeToggle from '../../components/ui/ThemeToggle'
 import Stepper from '../../components/booking/Stepper'
 import BarberCard from '../../components/booking/BarberCard'
 import { formatCOP } from '../../lib/format'
+import { resolveAssetUrl } from '../../lib/assets'
 import { useAuth } from '../../context/AuthContext'
 import { getPublicBarbershop } from '../../api/barbershops'
 import { listPublicBarbers } from '../../api/barbers'
 import { listPublicServices } from '../../api/services'
-import { getAvailability, createAppointment } from '../../api/appointments'
+import { listPublicPortfolio } from '../../api/portfolio'
+import { getAvailability, createAppointment, listMyAppointments } from '../../api/appointments'
+import { listMyReviews, createReview } from '../../api/reviews'
+import { toDateKey } from '../../lib/dates'
 
 const STEPS = ['Barbero', 'Servicio', 'Horario', 'Confirmar']
+const STATUS_LABEL = { pending: 'Pendiente', confirmed: 'Confirmada', completed: 'Completada', cancelled: 'Cancelada', no_show: 'No asistió' }
+
+function StarPicker({ value, onChange }) {
+  return (
+    <div className="flex gap-1">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button key={n} type="button" onClick={() => onChange(n)} aria-label={`${n} estrellas`}>
+          <Star size={20} className={n <= value ? 'fill-ink text-ink' : 'text-muted'} />
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function ReviewForm({ appointmentId, onDone }) {
+  const queryClient = useQueryClient()
+  const [rating, setRating] = useState(5)
+  const [comment, setComment] = useState('')
+  const [error, setError] = useState('')
+
+  const mutation = useMutation({
+    mutationFn: createReview,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-reviews'] })
+      onDone?.()
+    },
+    onError: (err) => setError(err.response?.data?.error || 'No pudimos guardar tu calificación.'),
+  })
+
+  return (
+    <div className="mt-3 flex flex-col gap-2.5 rounded-lg border border-border bg-surface-2 p-3">
+      <StarPicker value={rating} onChange={setRating} />
+      <textarea
+        rows={2}
+        placeholder="Cuéntanos cómo te fue (opcional)"
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        className="w-full resize-none rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+      />
+      {error && <p className="text-xs text-danger">{error}</p>}
+      <Button
+        type="button"
+        onClick={() => mutation.mutate({ appointmentId, rating, comment })}
+        disabled={mutation.isPending}
+        className="self-start"
+      >
+        {mutation.isPending ? 'Enviando...' : 'Enviar calificación'}
+      </Button>
+    </div>
+  )
+}
 
 function nextDays(count) {
   const days = []
@@ -25,10 +81,6 @@ function nextDays(count) {
     days.push(d)
   }
   return days
-}
-
-function dateKey(date) {
-  return date.toISOString().slice(0, 10)
 }
 
 function formatTime(iso) {
@@ -49,6 +101,9 @@ function PublicBookingPage() {
   const [confirmed, setConfirmed] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [bookingError, setBookingError] = useState('')
+  const [view, setView] = useState('booking')
+  const [reviewingId, setReviewingId] = useState(null)
+  const [viewingProfile, setViewingProfile] = useState(null)
 
   const isCustomerSession = isAuthenticated && user?.role === 'customer'
 
@@ -56,6 +111,25 @@ function PublicBookingPage() {
     queryKey: ['public-barbershop', slug],
     queryFn: () => getPublicBarbershop(slug),
   })
+  const { data: myAppointments = [] } = useQuery({
+    queryKey: ['my-appointments'],
+    queryFn: () => listMyAppointments(),
+    enabled: isCustomerSession,
+  })
+  const { data: myReviews = [] } = useQuery({
+    queryKey: ['my-reviews'],
+    queryFn: listMyReviews,
+    enabled: isCustomerSession,
+  })
+
+  const myAppointmentsHere = useMemo(
+    () =>
+      myAppointments
+        .filter((a) => a.barbershop === barbershop?._id)
+        .sort((a, b) => new Date(b.startTime) - new Date(a.startTime)),
+    [myAppointments, barbershop]
+  )
+  const reviewedAppointmentIds = useMemo(() => new Set(myReviews.map((r) => r.appointment)), [myReviews])
   const { data: barbers = [] } = useQuery({
     queryKey: ['public-barbers', slug],
     queryFn: () => listPublicBarbers(slug),
@@ -64,9 +138,23 @@ function PublicBookingPage() {
     queryKey: ['public-services', slug],
     queryFn: () => listPublicServices(slug),
   })
+  const { data: portfolioPhotos = [] } = useQuery({
+    queryKey: ['public-portfolio', slug],
+    queryFn: () => listPublicPortfolio(slug),
+  })
+
+  const photosByBarber = useMemo(() => {
+    const map = new Map()
+    for (const p of portfolioPhotos) {
+      const list = map.get(p.barber) || []
+      list.push(p)
+      map.set(p.barber, list)
+    }
+    return map
+  }, [portfolioPhotos])
 
   const days = useMemo(() => nextDays(7), [])
-  const selectedKey = dateKey(selectedDate)
+  const selectedKey = toDateKey(selectedDate)
 
   const { data: slots = [] } = useQuery({
     queryKey: ['availability', slug, barber?._id, service?._id, selectedKey],
@@ -158,26 +246,91 @@ function PublicBookingPage() {
     <div className="min-h-screen bg-bg">
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-2xl items-start justify-between px-4 py-6">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-ink">{barbershop.name}</h1>
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
-              {barbershop.address && (
-                <span className="flex items-center gap-1">
-                  <MapPin size={12} /> {barbershop.address}
-                </span>
-              )}
-              {barbershop.phone && (
-                <span className="flex items-center gap-1">
-                  <Phone size={12} /> {barbershop.phone}
-                </span>
-              )}
+          <div className="flex items-center gap-3">
+            {barbershop.logoUrl && (
+              <img
+                src={resolveAssetUrl(barbershop.logoUrl)}
+                alt=""
+                className="h-10 w-10 shrink-0 rounded-lg object-cover"
+              />
+            )}
+            <div>
+              <h1 className="text-xl font-semibold tracking-tight text-ink">{barbershop.name}</h1>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+                {barbershop.address && (
+                  <span className="flex items-center gap-1">
+                    <MapPin size={12} /> {barbershop.address}
+                  </span>
+                )}
+                {barbershop.phone && (
+                  <span className="flex items-center gap-1">
+                    <Phone size={12} /> {barbershop.phone}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-3">
+            {isCustomerSession && (
+              <button
+                type="button"
+                onClick={() => setView(view === 'booking' ? 'myAppointments' : 'booking')}
+                className="flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink"
+              >
+                <CalendarClock size={15} />
+                {view === 'booking' ? 'Mis citas' : 'Agendar nueva cita'}
+              </button>
+            )}
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-2xl px-4 py-8">
+        {view === 'myAppointments' ? (
+          <Card>
+            <h2 className="text-base font-semibold text-ink">Mis citas</h2>
+            {myAppointmentsHere.length === 0 ? (
+              <p className="mt-4 text-sm text-muted">Aún no tienes citas en esta barbería.</p>
+            ) : (
+              <div className="mt-4 flex flex-col divide-y divide-border">
+                {myAppointmentsHere.map((a) => (
+                  <div key={a._id} className="py-3.5 first:pt-0 last:pb-0">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium text-ink">{a.service?.name}</p>
+                        <p className="text-xs text-muted">
+                          {a.barber?.name} ·{' '}
+                          {new Date(a.startTime).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })} ·{' '}
+                          {formatTime(a.startTime)}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-xs text-muted">{STATUS_LABEL[a.status]}</span>
+                    </div>
+
+                    {a.status === 'completed' && !reviewedAppointmentIds.has(a._id) && (
+                      reviewingId === a._id ? (
+                        <ReviewForm appointmentId={a._id} onDone={() => setReviewingId(null)} />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setReviewingId(a._id)}
+                          className="mt-2 text-xs font-medium text-ink underline"
+                        >
+                          Calificar
+                        </button>
+                      )
+                    )}
+                    {reviewedAppointmentIds.has(a._id) && (
+                      <p className="mt-1.5 text-xs text-success">Ya calificaste esta cita, ¡gracias!</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        ) : (
+        <>
         <Stepper steps={STEPS} current={step} onStepClick={goTo} />
 
         <Card className="mt-6">
@@ -189,7 +342,13 @@ function PublicBookingPage() {
               ) : (
                 <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {barbers.map((b) => (
-                    <BarberCard key={b._id} barber={b} selected={barber?._id === b._id} onSelect={() => selectBarber(b)} />
+                    <BarberCard
+                      key={b._id}
+                      barber={b}
+                      selected={barber?._id === b._id}
+                      onSelect={() => selectBarber(b)}
+                      onViewProfile={() => setViewingProfile(b)}
+                    />
                   ))}
                 </div>
               )}
@@ -407,7 +566,71 @@ function PublicBookingPage() {
             </div>
           )}
         </Card>
+        </>
+        )}
       </main>
+
+      <Modal open={Boolean(viewingProfile)} onClose={() => setViewingProfile(null)} title="Perfil del barbero">
+        {viewingProfile && (
+          <div>
+            <div className="flex items-center gap-4">
+              {viewingProfile.avatarUrl ? (
+                <img
+                  src={resolveAssetUrl(viewingProfile.avatarUrl)}
+                  alt=""
+                  className="h-16 w-16 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-2 text-lg font-medium text-ink">
+                  <UserRound size={24} className="text-muted" />
+                </div>
+              )}
+              <div>
+                <p className="text-base font-semibold text-ink">{viewingProfile.name}</p>
+                {viewingProfile.rating != null && (
+                  <div className="mt-0.5 flex items-center gap-1 text-xs text-muted">
+                    <Star size={12} className="fill-ink text-ink" />
+                    {viewingProfile.rating} · {viewingProfile.reviewsCount} reseñas
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <p className="mb-2 text-sm font-medium text-muted">Portafolio de trabajos</p>
+              {(photosByBarber.get(viewingProfile._id) || []).length === 0 ? (
+                <p className="text-sm text-muted">Aún no ha subido fotos de sus trabajos.</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {photosByBarber.get(viewingProfile._id).map((p) => (
+                    <div key={p._id} className="relative aspect-square overflow-hidden rounded-lg bg-surface-2">
+                      <img src={resolveAssetUrl(p.imageUrl)} alt={p.description || ''} className="h-full w-full object-cover" />
+                      {/* Always visible (not hover-only) — most customers browse this on mobile, which has no hover state. */}
+                      {(p.service?.name || p.description) && (
+                        <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/80 to-transparent p-1.5 pt-4">
+                          {p.service?.name && <p className="truncate text-[11px] font-medium text-white">{p.service.name}</p>}
+                          {p.description && <p className="truncate text-[10px] text-white/80">{p.description}</p>}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <Button
+              type="button"
+              onClick={() => {
+                selectBarber(viewingProfile)
+                setViewingProfile(null)
+              }}
+              className="mt-5 w-full"
+            >
+              Elegir a {viewingProfile.name.split(' ')[0]}
+            </Button>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

@@ -14,3 +14,12 @@ export async function updateMyBarbershop(payload) {
   const { data } = await apiClient.patch('/barbershops/me', payload)
   return data
 }
+
+export async function uploadBarbershopLogo(file) {
+  const formData = new FormData()
+  formData.append('logo', file)
+  const { data } = await apiClient.post('/barbershops/me/logo', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
+}

@@ -39,7 +39,7 @@ function LoginPage() {
   return (
     <AuthLayout>
       <h1 className="text-2xl font-semibold text-ink">Inicia sesión</h1>
-      <p className="mt-1.5 text-sm text-muted">Bienvenido de vuelta a BarberMAX</p>
+      <p className="mt-1.5 text-sm text-muted">Bienvenido de vuelta a Cortio</p>
 
       {notice && (
         <p className="mt-6 rounded-lg border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-muted">{notice}</p>

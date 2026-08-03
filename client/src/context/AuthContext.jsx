@@ -47,9 +47,22 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
+  function updateUser(updatedUser) {
+    setUser(updatedUser)
+  }
+
   return (
     <AuthContext.Provider
-      value={{ user, loading, isAuthenticated: Boolean(user), login, registerBarbershop, registerCustomer, logout }}
+      value={{
+        user,
+        loading,
+        isAuthenticated: Boolean(user),
+        login,
+        registerBarbershop,
+        registerCustomer,
+        logout,
+        updateUser,
+      }}
     >
       {children}
     </AuthContext.Provider>

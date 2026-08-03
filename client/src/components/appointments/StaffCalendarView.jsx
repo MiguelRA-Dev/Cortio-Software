@@ -1,13 +1,27 @@
 import { Calendar } from 'react-big-calendar'
+import withDragAndDropRaw from 'react-big-calendar/lib/addons/dragAndDrop'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
+import 'react-big-calendar/lib/addons/dragAndDrop/styles.css'
 import '../../styles/calendar-overrides.css'
 import { localizer } from '../../lib/calendarLocalizer'
+
+// The addon's CJS build sometimes reaches us double-wrapped ({ default: fn }) depending
+// on the bundler's interop, instead of the bare function — unwrap defensively either way.
+const withDragAndDrop = withDragAndDropRaw.default || withDragAndDropRaw
+const DragAndDropCalendar = withDragAndDrop(Calendar)
+const RESCHEDULABLE_STATUSES = ['pending', 'confirmed']
 
 const STATUS_STYLE = {
   completed: { borderLeft: '3px solid var(--success)', backgroundColor: 'color-mix(in oklab, var(--success) 14%, var(--surface-2))' },
   confirmed: { borderLeft: '3px solid var(--ink)', backgroundColor: 'var(--surface-2)' },
   pending: { borderLeft: '3px dashed var(--muted)', backgroundColor: 'var(--surface-2)' },
   cancelled: {
+    borderLeft: '3px solid var(--danger)',
+    backgroundColor: 'color-mix(in oklab, var(--danger) 10%, var(--surface-2))',
+    opacity: 0.6,
+    textDecoration: 'line-through',
+  },
+  no_show: {
     borderLeft: '3px solid var(--danger)',
     backgroundColor: 'color-mix(in oklab, var(--danger) 10%, var(--surface-2))',
     opacity: 0.6,
@@ -24,10 +38,12 @@ function EventContent({ event }) {
   )
 }
 
-function StaffCalendarView({ date, onNavigate, resources, events, onSelectEvent }) {
+function StaffCalendarView({ date, onNavigate, resources, events, onSelectEvent, onEventDrop }) {
+  const CalendarComponent = onEventDrop ? DragAndDropCalendar : Calendar
+
   return (
     <div style={{ height: 640 }}>
-      <Calendar
+      <CalendarComponent
         localizer={localizer}
         culture="es"
         date={date}
@@ -48,6 +64,9 @@ function StaffCalendarView({ date, onNavigate, resources, events, onSelectEvent 
         eventPropGetter={(event) => ({ style: STATUS_STYLE[event.status] || {} })}
         components={{ event: EventContent }}
         onSelectEvent={onSelectEvent}
+        onEventDrop={onEventDrop}
+        draggableAccessor={(event) => RESCHEDULABLE_STATUSES.includes(event.status)}
+        resizable={false}
       />
     </div>
   )

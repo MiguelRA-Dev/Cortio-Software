@@ -9,6 +9,7 @@ const STATUS_LABEL = {
   confirmed: 'Confirmada',
   pending: 'Pendiente',
   cancelled: 'Cancelada',
+  no_show: 'No asistió',
 }
 
 const STATUS_VARIANT = {
@@ -16,6 +17,7 @@ const STATUS_VARIANT = {
   confirmed: 'neutral',
   pending: 'muted',
   cancelled: 'danger',
+  no_show: 'danger',
 }
 
 function formatTime(date) {

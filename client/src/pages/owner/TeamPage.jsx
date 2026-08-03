@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Camera } from 'lucide-react'
+import { Plus, Pencil, Camera, Trash2, Image as ImageIcon } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Modal from '../../components/ui/Modal'
@@ -11,6 +11,7 @@ import WeeklyScheduleEditor from '../../components/team/WeeklyScheduleEditor'
 import { formatCOP } from '../../lib/format'
 import { resolveAssetUrl } from '../../lib/assets'
 import { listTeam, createBarber, updateBarber, uploadBarberAvatar } from '../../api/barbers'
+import { listBarberPortfolio, deletePortfolioPhoto } from '../../api/portfolio'
 
 const PAYMENT_SCHEMES = [
   { id: 'commission', label: 'Comisión' },
@@ -87,6 +88,17 @@ function TeamPage() {
       queryClient.invalidateQueries({ queryKey: ['team'] })
     },
     onError: (err) => setAvatarError(err.response?.data?.error || 'No pudimos subir la foto.'),
+  })
+
+  const { data: portfolioPhotos = [] } = useQuery({
+    queryKey: ['portfolio', 'barber', editingId],
+    queryFn: () => listBarberPortfolio(editingId),
+    enabled: Boolean(editingId),
+  })
+
+  const deletePhotoMutation = useMutation({
+    mutationFn: deletePortfolioPhoto,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['portfolio', 'barber', editingId] }),
   })
 
   function openCreate() {
@@ -262,6 +274,34 @@ function TeamPage() {
                 </Button>
                 {avatarError && <p className="mt-1.5 text-xs text-danger">{avatarError}</p>}
               </div>
+            </div>
+          )}
+
+          {editingId && (
+            <div>
+              <p className="mb-2 text-sm font-medium text-muted">Portafolio de trabajos</p>
+              {portfolioPhotos.length === 0 ? (
+                <p className="flex items-center gap-2 text-xs text-muted">
+                  <ImageIcon size={14} />
+                  Este barbero aún no ha subido fotos.
+                </p>
+              ) : (
+                <div className="grid grid-cols-4 gap-2">
+                  {portfolioPhotos.map((p) => (
+                    <div key={p._id} className="group relative aspect-square overflow-hidden rounded-lg bg-surface-2">
+                      <img src={resolveAssetUrl(p.imageUrl)} alt="" className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => deletePhotoMutation.mutate(p._id)}
+                        aria-label="Eliminar foto"
+                        className="absolute right-1 top-1 rounded-md bg-bg/80 p-1 text-muted backdrop-blur transition-opacity hover:text-danger sm:opacity-0 sm:group-hover:opacity-100"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

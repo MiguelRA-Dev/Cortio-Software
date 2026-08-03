@@ -25,6 +25,10 @@ const create = asyncHandler(async (req, res) => {
     if (req.user.role === 'barber' && linkedAppointment.barber.toString() !== req.user._id.toString()) {
       throw new ApiError(403, 'You can only link your own appointments');
     }
+    const existingSale = await Sale.findOne({ appointment: linkedAppointment._id });
+    if (existingSale) {
+      throw new ApiError(409, 'This appointment has already been sold');
+    }
   }
 
   const resolvedItems = [];
@@ -85,9 +89,12 @@ const create = asyncHandler(async (req, res) => {
     });
   }
 
+  // Barbers can only ring up sales under their own name, never attribute revenue to a colleague.
+  const barber = req.user.role === 'barber' ? req.user._id : barberId || linkedAppointment?.barber || undefined;
+
   const sale = await Sale.create({
     barbershop: req.user.barbershop,
-    barber: barberId || linkedAppointment?.barber || undefined,
+    barber,
     customer: customerId || linkedAppointment?.customer || undefined,
     appointment: linkedAppointment?._id,
     source: linkedAppointment ? 'appointment' : 'walk_in',
@@ -96,6 +103,12 @@ const create = asyncHandler(async (req, res) => {
     paymentMethod,
     createdBy: req.user._id
   });
+
+  // Selling the service is what actually completes the appointment — not a manual status click.
+  if (linkedAppointment) {
+    linkedAppointment.status = 'completed';
+    await linkedAppointment.save();
+  }
 
   res.status(201).json(sale);
 });
@@ -112,7 +125,10 @@ const list = asyncHandler(async (req, res) => {
     if (req.query.to) filter.createdAt.$lte = new Date(req.query.to);
   }
 
-  const sales = await Sale.find(filter).sort({ createdAt: -1 }).populate('barber', 'name');
+  const sales = await Sale.find(filter)
+    .sort({ createdAt: -1 })
+    .populate('barber', 'name')
+    .populate({ path: 'appointment', select: 'customer startTime', populate: { path: 'customer', select: 'name' } });
   res.json(sales);
 });
 
@@ -122,7 +138,9 @@ const getById = asyncHandler(async (req, res) => {
     filter.createdBy = req.user._id;
   }
 
-  const sale = await Sale.findOne(filter).populate('barber', 'name');
+  const sale = await Sale.findOne(filter)
+    .populate('barber', 'name')
+    .populate({ path: 'appointment', select: 'customer startTime', populate: { path: 'customer', select: 'name' } });
   if (!sale) {
     throw new ApiError(404, 'Sale not found');
   }

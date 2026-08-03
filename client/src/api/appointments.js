@@ -10,6 +10,11 @@ export async function updateAppointmentStatus(id, status) {
   return data
 }
 
+export async function rescheduleAppointment(id, startTime) {
+  const { data } = await apiClient.patch(`/appointments/${id}/reschedule`, { startTime })
+  return data
+}
+
 export async function getAvailability(slug, { barberId, serviceId, date }) {
   const { data } = await apiClient.get(`/appointments/availability/${slug}`, {
     params: { barberId, serviceId, date },

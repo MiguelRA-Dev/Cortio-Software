@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, Check, X as XIcon, List, CalendarDays } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X as XIcon, List, CalendarDays } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 import StaffCalendarView from '../../components/appointments/StaffCalendarView'
 import { useAuth } from '../../context/AuthContext'
-import { listMyAppointments, updateAppointmentStatus } from '../../api/appointments'
+import { listMyAppointments, updateAppointmentStatus, rescheduleAppointment } from '../../api/appointments'
+import { toDateKey } from '../../lib/dates'
 
 const STATUS_FILTERS = [
   { id: 'all', label: 'Todas' },
@@ -13,14 +14,17 @@ const STATUS_FILTERS = [
   { id: 'confirmed', label: 'Confirmada' },
   { id: 'completed', label: 'Completada' },
   { id: 'cancelled', label: 'Cancelada' },
+  { id: 'no_show', label: 'No asistió' },
 ]
 
-const STATUS_LABEL = { completed: 'Completada', confirmed: 'Confirmada', pending: 'Pendiente', cancelled: 'Cancelada' }
-const STATUS_VARIANT = { completed: 'success', confirmed: 'neutral', pending: 'muted', cancelled: 'danger' }
-
-function dateKey(date) {
-  return date.toISOString().slice(0, 10)
+const STATUS_LABEL = {
+  completed: 'Completada',
+  confirmed: 'Confirmada',
+  pending: 'Pendiente',
+  cancelled: 'Cancelada',
+  no_show: 'No asistió',
 }
+const STATUS_VARIANT = { completed: 'success', confirmed: 'neutral', pending: 'muted', cancelled: 'danger', no_show: 'danger' }
 
 function formatTime(date) {
   return date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })
@@ -32,6 +36,7 @@ function BarberAgendaPage() {
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [statusFilter, setStatusFilter] = useState('all')
   const [viewMode, setViewMode] = useState('calendar')
+  const [rescheduleError, setRescheduleError] = useState('')
 
   const { data: appointments = [], isLoading } = useQuery({
     queryKey: ['appointments'],
@@ -43,14 +48,26 @@ function BarberAgendaPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['appointments'] }),
   })
 
-  const selectedKey = dateKey(selectedDate)
+  const rescheduleMutation = useMutation({
+    mutationFn: ({ id, startTime }) => rescheduleAppointment(id, startTime),
+    onSuccess: () => {
+      setRescheduleError('')
+      queryClient.invalidateQueries({ queryKey: ['appointments'] })
+    },
+    onError: (err) => {
+      setRescheduleError(err.response?.data?.error || 'No pudimos mover la cita a ese horario.')
+      setTimeout(() => setRescheduleError(''), 4000)
+    },
+  })
+
+  const selectedKey = toDateKey(selectedDate)
   const dayLabel = selectedDate.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
 
   const filtered = useMemo(
     () =>
       appointments
         .filter(
-          (a) => dateKey(new Date(a.startTime)) === selectedKey && (statusFilter === 'all' || a.status === statusFilter)
+          (a) => toDateKey(new Date(a.startTime)) === selectedKey && (statusFilter === 'all' || a.status === statusFilter)
         )
         .sort((a, b) => new Date(a.startTime) - new Date(b.startTime)),
     [appointments, selectedKey, statusFilter]
@@ -82,11 +99,20 @@ function BarberAgendaPage() {
     statusMutation.mutate({ id, status })
   }
 
+  function handleEventDrop({ event, start }) {
+    rescheduleMutation.mutate({ id: event.id, startTime: start.toISOString() })
+  }
+
   return (
     <div>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">Mi agenda</h1>
         <p className="mt-1 text-sm text-muted capitalize">{dayLabel}</p>
+        {rescheduleError && (
+          <p className="mt-3 rounded-lg border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
+            {rescheduleError}
+          </p>
+        )}
       </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
@@ -148,6 +174,7 @@ function BarberAgendaPage() {
             onNavigate={setSelectedDate}
             resources={[{ id: user._id, name: user.name }]}
             events={calendarEvents}
+            onEventDrop={handleEventDrop}
           />
         </Card>
       ) : (
@@ -168,10 +195,7 @@ function BarberAgendaPage() {
                   <Badge variant={STATUS_VARIANT[a.status]}>{STATUS_LABEL[a.status]}</Badge>
                   {(a.status === 'pending' || a.status === 'confirmed') && (
                     <div className="flex shrink-0 gap-1">
-                      <button type="button" onClick={() => updateStatus(a._id, 'completed')} aria-label="Marcar como completada" className="rounded-md p-1.5 text-muted hover:bg-surface-2 hover:text-success">
-                        <Check size={15} />
-                      </button>
-                      <button type="button" onClick={() => updateStatus(a._id, 'cancelled')} aria-label="Cancelar cita" className="rounded-md p-1.5 text-muted hover:bg-surface-2 hover:text-danger">
+                      <button type="button" onClick={() => updateStatus(a._id, 'no_show')} aria-label="El cliente no se presentó" className="rounded-md p-1.5 text-muted hover:bg-surface-2 hover:text-danger">
                         <XIcon size={15} />
                       </button>
                     </div>

@@ -22,6 +22,10 @@ const userSchema = new mongoose.Schema({
   avatarUrl: { type: String },
   active: { type: Boolean, default: true },
 
+  emailVerified: { type: Boolean, default: false },
+  emailVerificationToken: { type: String },
+  emailVerificationExpires: { type: Date },
+
   barbershop: { type: mongoose.Schema.Types.ObjectId, ref: 'Barbershop' },
 
   paymentScheme: { type: String, enum: ['commission', 'fixed', 'mixed'] },

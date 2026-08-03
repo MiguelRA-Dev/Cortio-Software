@@ -4,9 +4,11 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const cron = require('node-cron');
 const connectDB = require('./src/config/db');
 const apiRoutes = require('./src/routes');
 const { notFound, errorHandler } = require('./src/middleware/errorHandler');
+const { runBillingJob } = require('./src/jobs/billingJob');
 
 const app = express();
 
@@ -40,6 +42,11 @@ connectDB()
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
+    });
+
+    // Daily subscription renewal run — charges every barbershop whose paid period ended.
+    cron.schedule('0 6 * * *', () => {
+      runBillingJob().catch((err) => console.error('[billingJob] Unexpected failure:', err));
     });
   })
   .catch((err) => {

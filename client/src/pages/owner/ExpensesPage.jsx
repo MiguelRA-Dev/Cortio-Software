@@ -1,28 +1,27 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, Plus, Pencil, Trash2, Receipt } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Pencil, Trash2, Receipt, List, CalendarDays } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Modal from '../../components/ui/Modal'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import Badge from '../../components/ui/Badge'
+import ExpenseCalendarView from '../../components/expenses/ExpenseCalendarView'
 import { formatCOP } from '../../lib/format'
 import { listExpenses, createExpense, updateExpense, deleteExpense } from '../../api/expenses'
+import { toDateKey, toUtcDateInput } from '../../lib/dates'
 
 const CATEGORIES = ['Arriendo', 'Servicios públicos', 'Insumos', 'Nómina', 'Marketing', 'Mantenimiento', 'Otro']
 
-function toDateInput(date) {
-  return date.toISOString().slice(0, 10)
-}
-
 const TODAY = new Date()
 
-const EMPTY_FORM = { category: CATEGORIES[0], description: '', amount: '', date: toDateInput(TODAY) }
+const EMPTY_FORM = { category: CATEGORIES[0], description: '', amount: '', date: toDateKey(TODAY) }
 
 function ExpensesPage() {
   const queryClient = useQueryClient()
   const [monthCursor, setMonthCursor] = useState(new Date(TODAY.getFullYear(), TODAY.getMonth(), 1))
+  const [viewMode, setViewMode] = useState('list')
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -31,7 +30,7 @@ function ExpensesPage() {
   const monthLabel = monthCursor.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })
   const monthStart = new Date(monthCursor.getFullYear(), monthCursor.getMonth(), 1)
   const monthEnd = new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 0, 23, 59, 59)
-  const monthKey = toDateInput(monthCursor)
+  const monthKey = toDateKey(monthCursor)
 
   const { data: expenses = [], isLoading, isError } = useQuery({
     queryKey: ['expenses', monthKey],
@@ -70,7 +69,7 @@ function ExpensesPage() {
 
   function openCreate() {
     setEditingId(null)
-    setForm({ ...EMPTY_FORM, date: toDateInput(monthCursor) })
+    setForm(EMPTY_FORM)
     setFormError('')
     setModalOpen(true)
   }
@@ -81,7 +80,7 @@ function ExpensesPage() {
       category: expense.category,
       description: expense.description || '',
       amount: expense.amount,
-      date: toDateInput(new Date(expense.date)),
+      date: toUtcDateInput(new Date(expense.date)),
     })
     setFormError('')
     setModalOpen(true)
@@ -154,10 +153,31 @@ function ExpensesPage() {
           </button>
         </div>
 
-        <Card className="px-4 py-2.5">
-          <span className="text-xs text-muted">Total del mes </span>
-          <span className="text-sm font-semibold tabular-nums text-ink">{formatCOP(total)}</span>
-        </Card>
+        <div className="flex items-center gap-3">
+          <Card className="px-4 py-2.5">
+            <span className="text-xs text-muted">Total del mes </span>
+            <span className="text-sm font-semibold tabular-nums text-ink">{formatCOP(total)}</span>
+          </Card>
+
+          <div className="flex gap-1 rounded-lg border border-border bg-surface-2 p-1">
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              aria-label="Vista lista"
+              className={`rounded-md p-1.5 transition-colors ${viewMode === 'list' ? 'bg-accent text-accent-ink' : 'text-muted hover:text-ink'}`}
+            >
+              <List size={15} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('calendar')}
+              aria-label="Vista calendario"
+              className={`rounded-md p-1.5 transition-colors ${viewMode === 'calendar' ? 'bg-accent text-accent-ink' : 'text-muted hover:text-ink'}`}
+            >
+              <CalendarDays size={15} />
+            </button>
+          </div>
+        </div>
       </div>
 
       <Card className="mt-6">
@@ -165,12 +185,14 @@ function ExpensesPage() {
           <p className="py-4 text-sm text-muted">Cargando gastos…</p>
         ) : isError ? (
           <p className="py-4 text-sm text-danger">No pudimos cargar los gastos. Intenta recargar.</p>
+        ) : viewMode === 'calendar' ? (
+          <ExpenseCalendarView month={monthCursor} expenses={sorted} />
         ) : sorted.length === 0 ? (
           <p className="py-4 text-sm text-muted">No hay gastos registrados este mes.</p>
         ) : (
           <div className="flex flex-col divide-y divide-border">
             {sorted.map((e) => (
-              <div key={e._id} className="flex items-center gap-4 py-4 first:pt-0 last:pb-0">
+              <div key={e._id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-4 first:pt-0 last:pb-0">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-muted">
                   <Receipt size={16} />
                 </div>
@@ -182,11 +204,13 @@ function ExpensesPage() {
                   </p>
                 </div>
 
-                <Badge variant="muted">{e.category}</Badge>
+                <div className="basis-full sm:hidden" />
+
+                <Badge variant="muted" className="min-w-0 truncate">{e.category}</Badge>
 
                 <span className="shrink-0 text-sm font-medium tabular-nums text-ink">{formatCOP(e.amount)}</span>
 
-                <div className="flex shrink-0 gap-1">
+                <div className="ml-auto flex shrink-0 gap-1 sm:ml-0">
                   <button
                     type="button"
                     onClick={() => openEdit(e)}

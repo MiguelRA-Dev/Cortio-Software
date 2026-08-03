@@ -13,7 +13,7 @@ const saleSchema = new mongoose.Schema({
   barbershop: { type: mongoose.Schema.Types.ObjectId, ref: 'Barbershop', required: true },
   barber: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   customer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  appointment: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment' },
+  appointment: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment', unique: true, sparse: true },
   source: { type: String, enum: ['appointment', 'walk_in'], default: 'walk_in' },
   items: {
     type: [saleItemSchema],

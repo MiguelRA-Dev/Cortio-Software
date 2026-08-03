@@ -29,7 +29,10 @@ function Stepper({ steps, current, onStepClick }) {
               </span>
             </button>
             {stepNumber !== steps.length && (
-              <div className={`mx-2 h-px flex-1 ${isDone ? 'bg-ink' : 'bg-border'}`} />
+              // `border` is too close to `bg` in dark mode (#262626 on #000) to read as a
+              // line floating on bare background — `muted` at partial opacity holds up in
+              // both themes without turning it into a heavy divider.
+              <div className={`mx-2 h-px flex-1 ${isDone ? 'bg-ink' : 'bg-muted/50'}`} />
             )}
           </div>
         )

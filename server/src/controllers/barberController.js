@@ -2,6 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const User = require('../models/User');
 const Barbershop = require('../models/Barbershop');
+const Review = require('../models/Review');
+const PortfolioPhoto = require('../models/PortfolioPhoto');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 
@@ -21,7 +23,31 @@ const listPublicBarbers = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Barbershop not found');
   }
   const barbers = await User.find({ barbershop: barbershop._id, role: 'barber', active: true }).select(PUBLIC_FIELDS);
-  res.json(barbers);
+
+  const [ratings, portfolioCounts] = await Promise.all([
+    Review.aggregate([
+      { $match: { barbershop: barbershop._id } },
+      { $group: { _id: '$barber', avgRating: { $avg: '$rating' }, count: { $sum: 1 } } }
+    ]),
+    PortfolioPhoto.aggregate([
+      { $match: { barbershop: barbershop._id } },
+      { $group: { _id: '$barber', count: { $sum: 1 } } }
+    ])
+  ]);
+
+  const ratingByBarber = new Map(ratings.map((r) => [r._id.toString(), r]));
+  const portfolioByBarber = new Map(portfolioCounts.map((p) => [p._id.toString(), p.count]));
+
+  const enriched = barbers.map((b) => {
+    const obj = b.toObject();
+    const rating = ratingByBarber.get(b._id.toString());
+    obj.rating = rating ? Math.round(rating.avgRating * 10) / 10 : null;
+    obj.reviewsCount = rating ? rating.count : 0;
+    obj.portfolioCount = portfolioByBarber.get(b._id.toString()) || 0;
+    return obj;
+  });
+
+  res.json(enriched);
 });
 
 const ALLOWED_UPDATE_FIELDS = ['name', 'phone', 'avatarUrl', 'paymentScheme', 'commissionRate', 'baseSalary', 'schedule', 'scheduleExceptions', 'active'];
@@ -45,6 +71,10 @@ const updateBarber = asyncHandler(async (req, res) => {
 });
 
 const uploadAvatar = asyncHandler(async (req, res) => {
+  if (req.user.role === 'barber' && req.params.id !== req.user._id.toString()) {
+    throw new ApiError(403, 'You can only upload your own photo');
+  }
+
   const barber = await User.findOne({ _id: req.params.id, barbershop: req.user.barbershop, role: 'barber' });
   if (!barber) {
     throw new ApiError(404, 'Barber not found');

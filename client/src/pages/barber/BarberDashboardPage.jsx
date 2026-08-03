@@ -1,14 +1,20 @@
 import { useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Calendar, DollarSign, Scissors, Check, X as XIcon } from 'lucide-react'
+import { Calendar, DollarSign, Scissors, X as XIcon } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import StatTile from '../../components/ui/StatTile'
 import Badge from '../../components/ui/Badge'
 import { formatCOP } from '../../lib/format'
 import { listMyAppointments, updateAppointmentStatus } from '../../api/appointments'
 
-const STATUS_LABEL = { completed: 'Completada', confirmed: 'Confirmada', pending: 'Pendiente', cancelled: 'Cancelada' }
-const STATUS_VARIANT = { completed: 'success', confirmed: 'neutral', pending: 'muted', cancelled: 'danger' }
+const STATUS_LABEL = {
+  completed: 'Completada',
+  confirmed: 'Confirmada',
+  pending: 'Pendiente',
+  cancelled: 'Cancelada',
+  no_show: 'No asistió',
+}
+const STATUS_VARIANT = { completed: 'success', confirmed: 'neutral', pending: 'muted', cancelled: 'danger', no_show: 'danger' }
 
 const today = new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
 
@@ -87,16 +93,8 @@ function BarberDashboardPage() {
                   <div className="flex shrink-0 gap-1">
                     <button
                       type="button"
-                      onClick={() => updateStatus(a._id, 'completed')}
-                      aria-label="Marcar como completada"
-                      className="rounded-md p-1.5 text-muted hover:bg-surface-2 hover:text-success"
-                    >
-                      <Check size={15} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateStatus(a._id, 'cancelled')}
-                      aria-label="Cancelar cita"
+                      onClick={() => updateStatus(a._id, 'no_show')}
+                      aria-label="El cliente no se presentó"
                       className="rounded-md p-1.5 text-muted hover:bg-surface-2 hover:text-danger"
                     >
                       <XIcon size={15} />

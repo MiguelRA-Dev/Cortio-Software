@@ -39,23 +39,23 @@ function WeeklyScheduleEditor({ value, onChange }) {
         const entry = byDay[day.id]
         const enabled = Boolean(entry)
         return (
-          <div key={day.id} className="flex items-center gap-3">
+          <div key={day.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:flex-nowrap">
             <Switch checked={enabled} onChange={(v) => toggleDay(day.id, v)} />
             <span className="w-20 shrink-0 text-sm text-ink">{day.label}</span>
             {enabled ? (
-              <div className="flex flex-1 items-center gap-2">
+              <div className="flex min-w-0 basis-full flex-wrap items-center gap-2 sm:basis-auto sm:flex-1">
                 <input
                   type="time"
                   value={entry.startTime}
                   onChange={(e) => updateTime(day.id, 'startTime', e.target.value)}
-                  className="rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-accent"
+                  className="min-w-0 rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-accent"
                 />
                 <span className="text-sm text-muted">a</span>
                 <input
                   type="time"
                   value={entry.endTime}
                   onChange={(e) => updateTime(day.id, 'endTime', e.target.value)}
-                  className="rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-accent"
+                  className="min-w-0 rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-accent"
                 />
               </div>
             ) : (

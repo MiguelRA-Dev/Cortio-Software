@@ -1,5 +1,5 @@
 {
-  "name": "barbermax-client",
+  "name": "cortio-client",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -30,5 +30,5 @@
     "oxlint": "^1.75.0",
     "vite": "^8.2.0"
   },
-  "description": "Web app for BarberMAX (barbershop SaaS)"
+  "description": "Web app for Cortio (barbershop SaaS)"
 }

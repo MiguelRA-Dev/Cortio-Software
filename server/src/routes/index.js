@@ -10,10 +10,16 @@ const expenseRoutes = require('./expenseRoutes');
 const payrollRoutes = require('./payrollRoutes');
 const reportRoutes = require('./reportRoutes');
 const customerRoutes = require('./customerRoutes');
+const billingRoutes = require('./billingRoutes');
+const portfolioRoutes = require('./portfolioRoutes');
+const reviewRoutes = require('./reviewRoutes');
 
 const router = express.Router();
 
 router.use('/auth', authRoutes);
+router.use('/billing', billingRoutes);
+router.use('/portfolio', portfolioRoutes);
+router.use('/reviews', reviewRoutes);
 router.use('/barbershops', barbershopRoutes);
 router.use('/barbers', barberRoutes);
 router.use('/services', serviceRoutes);

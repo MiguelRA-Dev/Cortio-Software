@@ -42,7 +42,7 @@ async function run() {
   // --- Barbershop + owner ---
   const owner = await User.create({
     name: 'Carlos Owner',
-    email: 'owner@barbermax.test',
+    email: 'owner@cortio.test',
     passwordHash,
     role: 'owner',
     phone: '300 555 1234',
@@ -69,7 +69,7 @@ async function run() {
   // --- Barbers ---
   const juan = await User.create({
     name: 'Juan Barbero',
-    email: 'juan@barbermax.test',
+    email: 'juan@cortio.test',
     passwordHash,
     role: 'barber',
     phone: '300 111 1111',
@@ -81,7 +81,7 @@ async function run() {
 
   const pedro = await User.create({
     name: 'Pedro Ríos',
-    email: 'pedro@barbermax.test',
+    email: 'pedro@cortio.test',
     passwordHash,
     role: 'barber',
     phone: '300 222 2222',
@@ -245,9 +245,9 @@ async function run() {
   console.log('Seed complete.');
   console.log('');
   console.log('Login credentials (password for all: ' + PASSWORD + '):');
-  console.log('  Owner:  owner@barbermax.test');
-  console.log('  Barber: juan@barbermax.test');
-  console.log('  Barber: pedro@barbermax.test');
+  console.log('  Owner:  owner@cortio.test');
+  console.log('  Barber: juan@cortio.test');
+  console.log('  Barber: pedro@cortio.test');
   console.log('  Customer: ana.gomez@example.test (and 5 more, see customerDefs)');
   console.log('');
   console.log('Barbershop slug: el-corte  ->  /b/el-corte');

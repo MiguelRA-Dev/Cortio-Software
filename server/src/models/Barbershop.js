@@ -11,11 +11,23 @@ const barbershopSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  location: { type: String, trim: true },
   address: { type: String, trim: true },
+  addressDetails: { type: String, trim: true },
   phone: { type: String, trim: true },
   logoUrl: { type: String },
   businessHours: [businessHoursSchema],
-  active: { type: Boolean, default: true }
+  active: { type: Boolean, default: true },
+
+  subscriptionStatus: { type: String, enum: ['trialing', 'active', 'past_due', 'canceled'], default: 'trialing' },
+  trialEndsAt: { type: Date },
+  currentPeriodEnd: { type: Date },
+  wompiPaymentSourceId: { type: String },
+  wompiCardLastFour: { type: String },
+  wompiCardBrand: { type: String },
+  // Guards against double-applying the same Wompi transaction if the webhook and the
+  // synchronous charge response both try to extend the subscription period.
+  lastPaymentReference: { type: String }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Barbershop', barbershopSchema);

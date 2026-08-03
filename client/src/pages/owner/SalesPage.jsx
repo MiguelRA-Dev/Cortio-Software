@@ -11,6 +11,7 @@ import { listProducts } from '../../api/products'
 import { listTeam } from '../../api/barbers'
 import { listSales, createSale } from '../../api/sales'
 import { listMyAppointments } from '../../api/appointments'
+import { useAuth } from '../../context/AuthContext'
 
 const PAYMENT_METHODS = [
   { id: 'cash', label: 'Efectivo' },
@@ -47,9 +48,11 @@ function CatalogGrid({ items, onAdd, priceKey = 'price' }) {
 
 function SalesPage() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const isBarber = user?.role === 'barber'
   const [catalogTab, setCatalogTab] = useState('services')
   const [cart, setCart] = useState([])
-  const [barberId, setBarberId] = useState('')
+  const [barberId, setBarberId] = useState(() => (isBarber ? user._id : ''))
   const [appointmentId, setAppointmentId] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [error, setError] = useState('')
@@ -64,14 +67,25 @@ function SalesPage() {
   const activeServices = services.filter((s) => s.active)
   const activeProducts = products.filter((p) => p.active)
 
+  const soldAppointmentIds = useMemo(
+    () => new Set(sales.filter((s) => s.appointment).map((s) => s.appointment._id || s.appointment)),
+    [sales]
+  )
+
   const linkableAppointments = useMemo(() => {
     const todayKey = new Date().toDateString()
     return appointments
-      .filter((a) => new Date(a.startTime).toDateString() === todayKey && ['confirmed', 'completed'].includes(a.status))
+      .filter(
+        (a) =>
+          new Date(a.startTime).toDateString() === todayKey &&
+          ['confirmed', 'completed'].includes(a.status) &&
+          !soldAppointmentIds.has(a._id)
+      )
       .sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
-  }, [appointments])
+  }, [appointments, soldAppointmentIds])
 
   const total = useMemo(() => cart.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0), [cart])
+  const salesTotal = useMemo(() => sales.reduce((sum, s) => sum + s.total, 0), [sales])
 
   const checkoutMutation = useMutation({
     mutationFn: createSale,
@@ -79,7 +93,7 @@ function SalesPage() {
       queryClient.invalidateQueries({ queryKey: ['sales'] })
       queryClient.invalidateQueries({ queryKey: ['products'] })
       setCart([])
-      setBarberId('')
+      setBarberId(isBarber ? user._id : '')
       setAppointmentId('')
       setError('')
       setSuccessMessage(`Venta registrada por ${formatCOP(sale.total)}`)
@@ -170,23 +184,48 @@ function SalesPage() {
           </Card>
 
           <Card className="mt-4">
-            <h3 className="text-sm font-medium text-muted">Ventas de hoy</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium text-muted">Ventas de hoy</h3>
+              <span className="text-sm font-semibold tabular-nums text-ink">{formatCOP(salesTotal)}</span>
+            </div>
             {sales.length === 0 ? (
               <p className="mt-3 text-sm text-muted">Aún no hay ventas registradas hoy.</p>
             ) : (
               <div className="mt-3 flex flex-col divide-y divide-border">
                 {sales.map((s) => (
-                  <div key={s._id} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
-                    <span className="w-12 shrink-0 text-sm font-medium tabular-nums text-ink">
+                  <div key={s._id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-3 first:pt-0 last:pb-0">
+                    <span className="shrink-0 text-sm font-medium tabular-nums text-ink sm:w-12">
                       {new Date(s.createdAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-sm text-muted">
                       {s.items.map((i) => i.name).join(', ')}
                     </span>
-                    <Badge variant={s.source === 'appointment' ? 'neutral' : 'muted'}>
-                      {s.source === 'appointment' ? 'De cita' : 'Walk-in'}
-                    </Badge>
                     <span className="shrink-0 text-sm font-medium tabular-nums text-ink">{formatCOP(s.total)}</span>
+
+                    <div className="basis-full sm:hidden" />
+
+                    <span className="min-w-0 max-w-[45%] shrink-0 truncate text-sm text-muted sm:w-24 sm:max-w-none">
+                      {s.barber?.name || 'Sin asignar'}
+                    </span>
+                    {s.source === 'appointment' && s.appointment ? (
+                      <Badge variant="neutral" className="min-w-0 flex-1 justify-start sm:w-48 sm:flex-none">
+                        <span
+                          className="block w-full truncate text-left"
+                          title={`${s.appointment.customer?.name || 'Cliente'} · ${new Date(
+                            s.appointment.startTime
+                          ).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })}`}
+                        >
+                          {s.appointment.customer?.name || 'Cliente'} ·{' '}
+                          {new Date(s.appointment.startTime).toLocaleTimeString('es-CO', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: false,
+                          })}
+                        </span>
+                      </Badge>
+                    ) : (
+                      <Badge variant="muted">Walk-in</Badge>
+                    )}
                   </div>
                 ))}
               </div>
@@ -254,13 +293,25 @@ function SalesPage() {
                 ))}
               </Select>
 
-              <Select id="barber" label="Atendido por" value={barberId} onChange={(e) => setBarberId(e.target.value)}>
-                <option value="">Sin asignar</option>
-                {barbers.map((b) => (
-                  <option key={b._id} value={b._id}>
-                    {b.name}
-                  </option>
-                ))}
+              <Select
+                id="barber"
+                label="Atendido por"
+                value={barberId}
+                onChange={(e) => setBarberId(e.target.value)}
+                disabled={isBarber}
+              >
+                {isBarber ? (
+                  <option value={user._id}>{user.name}</option>
+                ) : (
+                  <>
+                    <option value="">Sin asignar</option>
+                    {barbers.map((b) => (
+                      <option key={b._id} value={b._id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </>
+                )}
               </Select>
 
               <Select id="paymentMethod" label="Método de pago" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>

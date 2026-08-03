@@ -1,30 +1,46 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import QRCode from 'qrcode'
-import { Copy, Check } from 'lucide-react'
+import { Copy, Check, Camera, Store, ShieldCheck, ShieldAlert } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
+import Badge from '../../components/ui/Badge'
 import WeeklyScheduleEditor from '../../components/team/WeeklyScheduleEditor'
 import { useAuth } from '../../context/AuthContext'
-import { getMyBarbershop, updateMyBarbershop } from '../../api/barbershops'
+import { getMyBarbershop, updateMyBarbershop, uploadBarbershopLogo } from '../../api/barbershops'
+import { updateMe, resendVerification } from '../../api/auth'
+import { resolveAssetUrl } from '../../lib/assets'
 
 const BOOKING_BASE_URL = window.location.origin + '/b'
 
 function SettingsPage() {
-  const { user } = useAuth()
+  const { user, updateUser } = useAuth()
   const queryClient = useQueryClient()
   const { data: barbershop, isLoading } = useQuery({ queryKey: ['barbershop'], queryFn: getMyBarbershop })
 
-  const [form, setForm] = useState({ name: '', address: '', phone: '' })
+  const [form, setForm] = useState({ name: '', location: '', address: '', addressDetails: '', phone: '' })
   const [businessHours, setBusinessHours] = useState([])
   const [qrDataUrl, setQrDataUrl] = useState('')
   const [copied, setCopied] = useState(false)
   const [saved, setSaved] = useState(false)
 
+  const [accountForm, setAccountForm] = useState({ name: user.name, email: user.email })
+  const [accountError, setAccountError] = useState('')
+  const [accountSaved, setAccountSaved] = useState(false)
+
+  const logoInputRef = useRef(null)
+  const [logoError, setLogoError] = useState('')
+
   useEffect(() => {
     if (barbershop) {
-      setForm({ name: barbershop.name, address: barbershop.address || '', phone: barbershop.phone || '' })
+      setForm({
+        name: barbershop.name,
+        location: barbershop.location || '',
+        address: barbershop.address || '',
+        addressDetails: barbershop.addressDetails || '',
+        phone: barbershop.phone || '',
+      })
       setBusinessHours(barbershop.businessHours || [])
     }
   }, [barbershop])
@@ -46,6 +62,48 @@ function SettingsPage() {
       setTimeout(() => setSaved(false), 2500)
     },
   })
+
+  const accountMutation = useMutation({
+    mutationFn: updateMe,
+    onSuccess: (updatedUser) => {
+      updateUser(updatedUser)
+      setAccountError('')
+      setAccountSaved(true)
+      setTimeout(() => setAccountSaved(false), 2500)
+    },
+    onError: (err) => setAccountError(err.response?.data?.error || 'No pudimos guardar los cambios.'),
+  })
+
+  function handleAccountChange(e) {
+    setAccountForm({ ...accountForm, [e.target.name]: e.target.value })
+  }
+
+  function handleAccountSave(e) {
+    e.preventDefault()
+    setAccountError('')
+    accountMutation.mutate(accountForm)
+  }
+
+  const [resent, setResent] = useState(false)
+  const resendMutation = useMutation({
+    mutationFn: resendVerification,
+    onSuccess: () => setResent(true),
+  })
+
+  const logoMutation = useMutation({
+    mutationFn: uploadBarbershopLogo,
+    onSuccess: () => {
+      setLogoError('')
+      queryClient.invalidateQueries({ queryKey: ['barbershop'] })
+    },
+    onError: (err) => setLogoError(err.response?.data?.error || 'No pudimos subir el logo.'),
+  })
+
+  function handleLogoPick(e) {
+    const file = e.target.files?.[0]
+    if (file) logoMutation.mutate(file)
+    e.target.value = ''
+  }
 
   function handleCopy() {
     navigator.clipboard.writeText(bookingUrl)
@@ -74,9 +132,45 @@ function SettingsPage() {
       <form onSubmit={handleSave} className="mt-6 flex flex-col gap-4">
         <Card>
           <h3 className="text-sm font-medium text-muted">Perfil del negocio</h3>
+          <div className="mt-4 flex items-center gap-4">
+            {barbershop?.logoUrl ? (
+              <img src={resolveAssetUrl(barbershop.logoUrl)} alt="" className="h-16 w-16 shrink-0 rounded-lg object-cover" />
+            ) : (
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-muted">
+                <Store size={22} />
+              </div>
+            )}
+            <div>
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handleLogoPick}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={logoMutation.isPending}
+                onClick={() => logoInputRef.current?.click()}
+              >
+                <Camera size={14} />
+                {logoMutation.isPending ? 'Subiendo...' : 'Cambiar logo'}
+              </Button>
+              {logoError && <p className="mt-1.5 text-xs text-danger">{logoError}</p>}
+            </div>
+          </div>
           <div className="mt-4 flex flex-col gap-4">
             <Input id="name" name="name" label="Nombre de la barbería" value={form.name} onChange={handleChange} required />
+            <Input id="location" name="location" label="Ubicación (ciudad)" value={form.location} onChange={handleChange} />
             <Input id="address" name="address" label="Dirección" value={form.address} onChange={handleChange} />
+            <Input
+              id="addressDetails"
+              name="addressDetails"
+              label="Detalles adicionales de la dirección"
+              value={form.addressDetails}
+              onChange={handleChange}
+            />
             <Input id="phone" name="phone" label="Teléfono" value={form.phone} onChange={handleChange} />
           </div>
         </Card>
@@ -118,25 +212,59 @@ function SettingsPage() {
           </div>
         </Card>
 
-        <Card>
-          <h3 className="text-sm font-medium text-muted">Cuenta</h3>
-          <div className="mt-4 flex flex-col gap-3 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-muted">Nombre</span>
-              <span className="text-ink">{user.name}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted">Correo</span>
-              <span className="text-ink">{user.email}</span>
-            </div>
-          </div>
-        </Card>
-
         <div className="flex items-center gap-3">
           <Button type="submit" disabled={updateMutation.isPending}>
             {updateMutation.isPending ? 'Guardando...' : 'Guardar cambios'}
           </Button>
           {saved && <span className="text-sm text-success">Cambios guardados</span>}
+        </div>
+      </form>
+
+      <form onSubmit={handleAccountSave} className="mt-4 flex flex-col gap-4">
+        <Card>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium text-muted">Cuenta</h3>
+            {user.emailVerified ? (
+              <Badge variant="success">
+                <ShieldCheck size={12} className="mr-1" />
+                Verificado
+              </Badge>
+            ) : (
+              <Badge variant="danger">
+                <ShieldAlert size={12} className="mr-1" />
+                No verificado
+              </Badge>
+            )}
+          </div>
+          <div className="mt-4 flex flex-col gap-4">
+            <Input id="accountName" name="name" label="Nombre" value={accountForm.name} onChange={handleAccountChange} required />
+            <Input id="accountEmail" name="email" type="email" label="Correo" value={accountForm.email} onChange={handleAccountChange} required />
+          </div>
+          {!user.emailVerified && (
+            <div className="mt-4 flex items-center gap-3 rounded-lg border border-border bg-surface-2 px-3.5 py-2.5">
+              <p className="flex-1 text-xs text-muted">
+                Revisa tu correo y confirma tu cuenta para que aparezca como verificada.
+              </p>
+              <button
+                type="button"
+                onClick={() => resendMutation.mutate()}
+                disabled={resendMutation.isPending || resent}
+                className="shrink-0 text-xs font-medium text-ink underline disabled:opacity-50"
+              >
+                {resent ? 'Correo reenviado' : resendMutation.isPending ? 'Enviando...' : 'Reenviar correo'}
+              </button>
+            </div>
+          )}
+          {accountError && (
+            <p className="mt-4 rounded-lg border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-sm text-danger">{accountError}</p>
+          )}
+        </Card>
+
+        <div className="flex items-center gap-3">
+          <Button type="submit" disabled={accountMutation.isPending}>
+            {accountMutation.isPending ? 'Guardando...' : 'Guardar cuenta'}
+          </Button>
+          {accountSaved && <span className="text-sm text-success">Cambios guardados</span>}
         </div>
       </form>
     </div>

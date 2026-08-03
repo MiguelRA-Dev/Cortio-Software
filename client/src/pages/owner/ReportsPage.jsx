@@ -7,6 +7,8 @@ import Input from '../../components/ui/Input'
 import RankedBarList from '../../components/reports/RankedBarList'
 import { formatCOP } from '../../lib/format'
 import { getSummary, getByBarber, getByService } from '../../api/reports'
+import { listExpenses } from '../../api/expenses'
+import { toDateKey } from '../../lib/dates'
 
 const RANGE_PRESETS = [
   { id: '7d', label: 'Últimos 7 días' },
@@ -15,14 +17,10 @@ const RANGE_PRESETS = [
   { id: 'custom', label: 'Personalizado' },
 ]
 
-function toDateInput(date) {
-  return date.toISOString().slice(0, 10)
-}
-
 function defaultCustomFrom() {
   const d = new Date()
   d.setDate(d.getDate() - 6)
-  return toDateInput(d)
+  return toDateKey(d)
 }
 
 function startOfDay(date) {
@@ -59,7 +57,7 @@ function getRangeDates(range, customFrom, customTo) {
 function ReportsPage() {
   const [range, setRange] = useState('month')
   const [customFrom, setCustomFrom] = useState(defaultCustomFrom())
-  const [customTo, setCustomTo] = useState(toDateInput(new Date()))
+  const [customTo, setCustomTo] = useState(toDateKey(new Date()))
 
   const { from, to } = useMemo(() => getRangeDates(range, customFrom, customTo), [range, customFrom, customTo])
 
@@ -74,8 +72,22 @@ function ReportsPage() {
     queryKey: ['reports', 'by-service', from, to],
     queryFn: () => getByService({ from, to }),
   })
+  const { data: expenses = [] } = useQuery({
+    queryKey: ['expenses', 'report', from, to],
+    queryFn: () => listExpenses({ from, to }),
+  })
 
   const byServiceItems = byService.map((s) => ({ label: s.name, value: s.revenue }))
+
+  const byExpenseCategory = useMemo(() => {
+    const totals = new Map()
+    for (const e of expenses) {
+      totals.set(e.category, (totals.get(e.category) || 0) + e.amount)
+    }
+    return Array.from(totals.entries())
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value)
+  }, [expenses])
 
   return (
     <div>
@@ -114,7 +126,7 @@ function ReportsPage() {
               type="date"
               value={customTo}
               min={customFrom}
-              max={toDateInput(new Date())}
+              max={toDateKey(new Date())}
               onChange={(e) => setCustomTo(e.target.value)}
               className="py-1.5"
             />
@@ -166,6 +178,13 @@ function ReportsPage() {
             ))}
           </div>
           <p className="mt-3 text-xs text-muted">Barra = % de ocupación sobre su horario disponible</p>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <h3 className="text-sm font-medium text-muted">Gastos por categoría</h3>
+          <div className="mt-4">
+            <RankedBarList items={byExpenseCategory} valueFormatter={formatCOP} emptyLabel="Sin gastos registrados en este período." />
+          </div>
         </Card>
       </div>
     </div>

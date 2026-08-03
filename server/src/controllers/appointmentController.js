@@ -123,6 +123,9 @@ const listMine = asyncHandler(async (req, res) => {
 });
 
 const VALID_STATUSES = ['pending', 'confirmed', 'completed', 'cancelled', 'no_show'];
+// Barbers can only reject appointments (cancel or mark no-show). Completion is set
+// automatically when the service is sold in Ventas — never by a manual status change.
+const BARBER_ALLOWED_STATUSES = ['cancelled', 'no_show'];
 
 const updateStatus = asyncHandler(async (req, res) => {
   const { status } = req.body;
@@ -140,10 +143,61 @@ const updateStatus = asyncHandler(async (req, res) => {
   if (!isOwner && !isAssignedBarber) {
     throw new ApiError(403, 'You do not have permission to update this appointment');
   }
+  if (isAssignedBarber && !BARBER_ALLOWED_STATUSES.includes(status)) {
+    throw new ApiError(403, 'Barbers can only cancel or mark appointments as no-show');
+  }
 
   appointment.status = status;
   await appointment.save();
   res.json(appointment);
 });
 
-module.exports = { getAvailability, create, listMine, updateStatus };
+const RESCHEDULABLE_STATUSES = ['pending', 'confirmed'];
+
+const reschedule = asyncHandler(async (req, res) => {
+  const { startTime } = req.body;
+  if (!startTime) {
+    throw new ApiError(400, 'startTime is required');
+  }
+  const newStart = new Date(startTime);
+  if (Number.isNaN(newStart.getTime())) {
+    throw new ApiError(400, 'Invalid startTime');
+  }
+
+  const appointment = await Appointment.findById(req.params.id);
+  if (!appointment) {
+    throw new ApiError(404, 'Appointment not found');
+  }
+
+  const isOwner = req.user.role === 'owner' && appointment.barbershop.toString() === req.user.barbershop.toString();
+  const isAssignedBarber = req.user.role === 'barber' && appointment.barber.toString() === req.user._id.toString();
+  if (!isOwner && !isAssignedBarber) {
+    throw new ApiError(403, 'You do not have permission to reschedule this appointment');
+  }
+  if (!RESCHEDULABLE_STATUSES.includes(appointment.status)) {
+    throw new ApiError(409, 'Only pending or confirmed appointments can be rescheduled');
+  }
+
+  // Preserve the originally booked duration regardless of the service's current duration.
+  const durationMs = appointment.endTime.getTime() - appointment.startTime.getTime();
+  const newEnd = new Date(newStart.getTime() + durationMs);
+
+  // Slot is free if there's no other non-cancelled appointment overlapping it.
+  const conflict = await Appointment.findOne({
+    _id: { $ne: appointment._id },
+    barber: appointment.barber,
+    status: { $ne: 'cancelled' },
+    startTime: { $lt: newEnd },
+    endTime: { $gt: newStart }
+  });
+  if (conflict) {
+    throw new ApiError(409, 'The barber already has an appointment at that time');
+  }
+
+  appointment.startTime = newStart;
+  appointment.endTime = newEnd;
+  await appointment.save();
+  res.json(appointment);
+});
+
+module.exports = { getAvailability, create, listMine, updateStatus, reschedule };

@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext'
 import BarberAgendaPage from '../barber/BarberAgendaPage'
 import { listMyAppointments, updateAppointmentStatus } from '../../api/appointments'
 import { listTeam } from '../../api/barbers'
+import { toDateKey } from '../../lib/dates'
 
 const STATUS_FILTERS = [
   { id: 'all', label: 'Todas' },
@@ -15,6 +16,7 @@ const STATUS_FILTERS = [
   { id: 'confirmed', label: 'Confirmada' },
   { id: 'completed', label: 'Completada' },
   { id: 'cancelled', label: 'Cancelada' },
+  { id: 'no_show', label: 'No asistió' },
 ]
 
 const STATUS_LABEL = {
@@ -22,6 +24,7 @@ const STATUS_LABEL = {
   confirmed: 'Confirmada',
   pending: 'Pendiente',
   cancelled: 'Cancelada',
+  no_show: 'No asistió',
 }
 
 const STATUS_VARIANT = {
@@ -29,11 +32,9 @@ const STATUS_VARIANT = {
   confirmed: 'neutral',
   pending: 'muted',
   cancelled: 'danger',
+  no_show: 'danger',
 }
 
-function dateKey(date) {
-  return date.toISOString().slice(0, 10)
-}
 
 function formatTime(date) {
   return date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })
@@ -58,13 +59,13 @@ function AppointmentsPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['appointments'] }),
   })
 
-  const selectedKey = dateKey(selectedDate)
+  const selectedKey = toDateKey(selectedDate)
   const dayLabel = selectedDate.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
 
   const filtered = useMemo(
     () =>
       appointments.filter(
-        (a) => dateKey(new Date(a.startTime)) === selectedKey && (statusFilter === 'all' || a.status === statusFilter)
+        (a) => toDateKey(new Date(a.startTime)) === selectedKey && (statusFilter === 'all' || a.status === statusFilter)
       ),
     [appointments, selectedKey, statusFilter]
   )
