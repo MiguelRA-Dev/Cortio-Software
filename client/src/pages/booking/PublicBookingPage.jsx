@@ -73,6 +73,86 @@ function ReviewForm({ appointmentId, onDone }) {
   )
 }
 
+function CustomerAuthForm({ idPrefix, mode, setMode, contact, setContact, onSubmit, submitting, error, submitLabel }) {
+  return (
+    <div>
+      <div className="flex gap-1 rounded-lg border border-border bg-surface-2 p-1">
+        <button
+          type="button"
+          onClick={() => setMode('register')}
+          className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            mode === 'register' ? 'bg-accent text-accent-ink' : 'text-muted hover:text-ink'
+          }`}
+        >
+          Crear cuenta
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('login')}
+          className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            mode === 'login' ? 'bg-accent text-accent-ink' : 'text-muted hover:text-ink'
+          }`}
+        >
+          Ya tengo cuenta
+        </button>
+      </div>
+
+      <form onSubmit={onSubmit} className="mt-4 flex flex-col gap-4">
+        {mode === 'register' && (
+          <>
+            <Input
+              id={`${idPrefix}Name`}
+              label="Nombre completo"
+              placeholder="Tu nombre"
+              value={contact.name}
+              onChange={(e) => setContact({ ...contact, name: e.target.value })}
+              required
+            />
+            <Input
+              id={`${idPrefix}Phone`}
+              label="Teléfono"
+              placeholder="300 123 4567"
+              value={contact.phone}
+              onChange={(e) => setContact({ ...contact, phone: e.target.value })}
+              required
+            />
+          </>
+        )}
+        <Input
+          id={`${idPrefix}Email`}
+          type="email"
+          label="Correo electrónico"
+          placeholder="tucorreo@ejemplo.com"
+          value={contact.email}
+          onChange={(e) => setContact({ ...contact, email: e.target.value })}
+          required
+        />
+        <Input
+          id={`${idPrefix}Password`}
+          type="password"
+          label={mode === 'register' ? 'Crea una contraseña' : 'Contraseña'}
+          placeholder="••••••••"
+          value={contact.password}
+          onChange={(e) => setContact({ ...contact, password: e.target.value })}
+          required
+        />
+        {mode === 'register' && (
+          <p className="-mt-2 text-xs text-muted">
+            Con esto creamos tu cuenta para que puedas ver y gestionar tus citas la próxima vez sin volver a
+            registrarte.
+          </p>
+        )}
+        {error && (
+          <p className="rounded-lg border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-sm text-danger">{error}</p>
+        )}
+        <Button type="submit" disabled={submitting} className="w-full">
+          {submitting ? 'Procesando...' : submitLabel}
+        </Button>
+      </form>
+    </div>
+  )
+}
+
 function nextDays(count) {
   const days = []
   for (let i = 0; i < count; i++) {
@@ -104,6 +184,11 @@ function PublicBookingPage() {
   const [view, setView] = useState('booking')
   const [reviewingId, setReviewingId] = useState(null)
   const [viewingProfile, setViewingProfile] = useState(null)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [headerAuthMode, setHeaderAuthMode] = useState('login')
+  const [headerContact, setHeaderContact] = useState({ name: '', email: '', phone: '', password: '' })
+  const [headerAuthError, setHeaderAuthError] = useState('')
+  const [headerAuthSubmitting, setHeaderAuthSubmitting] = useState(false)
 
   const isCustomerSession = isAuthenticated && user?.role === 'customer'
 
@@ -207,6 +292,30 @@ function PublicBookingPage() {
     setContact({ name: '', email: '', phone: '', password: '' })
   }
 
+  async function handleHeaderAuth(e) {
+    e.preventDefault()
+    setHeaderAuthError('')
+    setHeaderAuthSubmitting(true)
+    try {
+      if (headerAuthMode === 'register') {
+        await registerCustomer({
+          name: headerContact.name,
+          email: headerContact.email,
+          password: headerContact.password,
+          phone: headerContact.phone,
+        })
+      } else {
+        await login(headerContact.email, headerContact.password)
+      }
+      setShowAuthModal(false)
+      setHeaderContact({ name: '', email: '', phone: '', password: '' })
+    } catch (err) {
+      setHeaderAuthError(err.response?.data?.error || 'No pudimos iniciar sesión. Intenta de nuevo.')
+    } finally {
+      setHeaderAuthSubmitting(false)
+    }
+  }
+
   if (loadingBarbershop) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-bg">
@@ -271,14 +380,27 @@ function PublicBookingPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {isCustomerSession && (
+            {isCustomerSession ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setView(view === 'booking' ? 'myAppointments' : 'booking')}
+                  className="flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink"
+                >
+                  <CalendarClock size={15} />
+                  {view === 'booking' ? 'Mis citas' : 'Agendar nueva cita'}
+                </button>
+                <button type="button" onClick={logout} className="text-sm font-medium text-muted hover:text-ink">
+                  Cerrar sesión
+                </button>
+              </>
+            ) : (
               <button
                 type="button"
-                onClick={() => setView(view === 'booking' ? 'myAppointments' : 'booking')}
-                className="flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink"
+                onClick={() => setShowAuthModal(true)}
+                className="text-sm font-medium text-muted hover:text-ink"
               >
-                <CalendarClock size={15} />
-                {view === 'booking' ? 'Mis citas' : 'Agendar nueva cita'}
+                Iniciar sesión
               </button>
             )}
             <ThemeToggle />
@@ -488,79 +610,17 @@ function PublicBookingPage() {
                 </form>
               ) : (
                 <div className="mt-5">
-                  <div className="flex gap-1 rounded-lg border border-border bg-surface-2 p-1">
-                    <button
-                      type="button"
-                      onClick={() => setAuthMode('register')}
-                      className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                        authMode === 'register' ? 'bg-accent text-accent-ink' : 'text-muted hover:text-ink'
-                      }`}
-                    >
-                      Crear cuenta
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAuthMode('login')}
-                      className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                        authMode === 'login' ? 'bg-accent text-accent-ink' : 'text-muted hover:text-ink'
-                      }`}
-                    >
-                      Ya tengo cuenta
-                    </button>
-                  </div>
-
-                  <form onSubmit={handleConfirm} className="mt-4 flex flex-col gap-4">
-                    {authMode === 'register' && (
-                      <>
-                        <Input
-                          id="contactName"
-                          label="Nombre completo"
-                          placeholder="Tu nombre"
-                          value={contact.name}
-                          onChange={(e) => setContact({ ...contact, name: e.target.value })}
-                          required
-                        />
-                        <Input
-                          id="contactPhone"
-                          label="Teléfono"
-                          placeholder="300 123 4567"
-                          value={contact.phone}
-                          onChange={(e) => setContact({ ...contact, phone: e.target.value })}
-                          required
-                        />
-                      </>
-                    )}
-                    <Input
-                      id="contactEmail"
-                      type="email"
-                      label="Correo electrónico"
-                      placeholder="tucorreo@ejemplo.com"
-                      value={contact.email}
-                      onChange={(e) => setContact({ ...contact, email: e.target.value })}
-                      required
-                    />
-                    <Input
-                      id="contactPassword"
-                      type="password"
-                      label={authMode === 'register' ? 'Crea una contraseña' : 'Contraseña'}
-                      placeholder="••••••••"
-                      value={contact.password}
-                      onChange={(e) => setContact({ ...contact, password: e.target.value })}
-                      required
-                    />
-                    {authMode === 'register' && (
-                      <p className="-mt-2 text-xs text-muted">
-                        Con esto creamos tu cuenta para que puedas ver y gestionar tus citas la próxima vez sin volver a
-                        registrarte.
-                      </p>
-                    )}
-                    {bookingError && (
-                      <p className="rounded-lg border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-sm text-danger">{bookingError}</p>
-                    )}
-                    <Button type="submit" disabled={submitting} className="w-full">
-                      {submitting ? 'Procesando...' : authMode === 'register' ? 'Crear cuenta y confirmar' : 'Iniciar sesión y confirmar'}
-                    </Button>
-                  </form>
+                  <CustomerAuthForm
+                    idPrefix="contact"
+                    mode={authMode}
+                    setMode={setAuthMode}
+                    contact={contact}
+                    setContact={setContact}
+                    onSubmit={handleConfirm}
+                    submitting={submitting}
+                    error={bookingError}
+                    submitLabel={authMode === 'register' ? 'Crear cuenta y confirmar' : 'Iniciar sesión y confirmar'}
+                  />
                 </div>
               )}
             </div>
@@ -569,6 +629,27 @@ function PublicBookingPage() {
         </>
         )}
       </main>
+
+      <Modal
+        open={showAuthModal}
+        onClose={() => {
+          setShowAuthModal(false)
+          setHeaderAuthError('')
+        }}
+        title="Inicia sesión o crea tu cuenta"
+      >
+        <CustomerAuthForm
+          idPrefix="header"
+          mode={headerAuthMode}
+          setMode={setHeaderAuthMode}
+          contact={headerContact}
+          setContact={setHeaderContact}
+          onSubmit={handleHeaderAuth}
+          submitting={headerAuthSubmitting}
+          error={headerAuthError}
+          submitLabel={headerAuthMode === 'register' ? 'Crear cuenta' : 'Iniciar sesión'}
+        />
+      </Modal>
 
       <Modal open={Boolean(viewingProfile)} onClose={() => setViewingProfile(null)} title="Perfil del barbero">
         {viewingProfile && (
