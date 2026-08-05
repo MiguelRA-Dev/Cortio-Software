@@ -470,7 +470,7 @@ function PayrollPage() {
         ) : !tracingEntry?.sales?.length ? (
           <p className="text-sm text-muted">Esta liquidación no tiene ventas asociadas.</p>
         ) : (
-          <div className="flex flex-col divide-y divide-border">
+          <div className="flex max-h-105 flex-col divide-y divide-border overflow-y-auto pr-1">
             {tracingEntry.sales.map((s) => (
               <div key={s._id} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
                 <span className="w-20 shrink-0 text-xs text-muted">
