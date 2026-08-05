@@ -153,6 +153,15 @@ function CustomerAuthForm({ idPrefix, mode, setMode, contact, setContact, onSubm
   )
 }
 
+function PoweredByCortio() {
+  return (
+    <footer className="mt-8 w-full border-t border-border py-8 text-center">
+      <p className="text-2xl font-semibold tracking-tight text-ink">Cortio</p>
+      <p className="mt-1 text-xs text-muted">© {new Date().getFullYear()} Cortio Software</p>
+    </footer>
+  )
+}
+
 function nextDays(count) {
   const days = []
   for (let i = 0; i < count; i++) {
@@ -195,6 +204,9 @@ function PublicBookingPage() {
   const { data: barbershop, isLoading: loadingBarbershop, isError: barbershopError } = useQuery({
     queryKey: ['public-barbershop', slug],
     queryFn: () => getPublicBarbershop(slug),
+    // A bad/expired slug is a 404, not a transient failure — retrying just delays
+    // showing the "not available" message behind three rounds of backoff.
+    retry: false,
   })
   const { data: myAppointments = [] } = useQuery({
     queryKey: ['my-appointments'],
@@ -218,14 +230,17 @@ function PublicBookingPage() {
   const { data: barbers = [] } = useQuery({
     queryKey: ['public-barbers', slug],
     queryFn: () => listPublicBarbers(slug),
+    retry: false,
   })
   const { data: services = [] } = useQuery({
     queryKey: ['public-services', slug],
     queryFn: () => listPublicServices(slug),
+    retry: false,
   })
   const { data: portfolioPhotos = [] } = useQuery({
     queryKey: ['public-portfolio', slug],
     queryFn: () => listPublicPortfolio(slug),
+    retry: false,
   })
 
   const photosByBarber = useMemo(() => {
@@ -318,41 +333,53 @@ function PublicBookingPage() {
 
   if (loadingBarbershop) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-bg">
-        <span className="text-sm text-muted">Cargando…</span>
+      <div className="flex min-h-screen flex-col bg-bg">
+        <div className="flex flex-1 items-center justify-center">
+          <span className="text-sm text-muted">Cargando…</span>
+        </div>
+        <PoweredByCortio />
       </div>
     )
   }
 
   if (barbershopError || !barbershop) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-bg px-4">
-        <p className="text-sm text-muted">No encontramos esta barbería.</p>
+      <div className="flex min-h-screen flex-col bg-bg">
+        <div className="flex flex-1 items-center justify-center px-4">
+          <div className="text-center">
+            <p className="text-sm font-medium text-ink">Esta barbería no se encuentra disponible.</p>
+            <p className="mt-1.5 text-xs text-muted">Verifica el enlace o contacta directamente a la barbería.</p>
+          </div>
+        </div>
+        <PoweredByCortio />
       </div>
     )
   }
 
   if (confirmed) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-bg px-4">
-        <Card className="w-full max-w-sm text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success/10 text-success">
-            <CheckCircle2 size={24} />
-          </div>
-          <h1 className="mt-4 text-lg font-semibold text-ink">¡Cita confirmada!</h1>
-          <p className="mt-2 text-sm text-muted">
-            {service?.name} con {barber?.name} el{' '}
-            {selectedDate.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })} a las{' '}
-            {formatTime(selectedTime)}.
-          </p>
-          <p className="mt-4 text-xs text-muted">Guarda esta pantalla como comprobante de tu cita.</p>
-        </Card>
+      <div className="flex min-h-screen flex-col bg-bg">
+        <div className="flex flex-1 items-center justify-center px-4">
+          <Card className="w-full max-w-sm text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success/10 text-success">
+              <CheckCircle2 size={24} />
+            </div>
+            <h1 className="mt-4 text-lg font-semibold text-ink">¡Cita confirmada!</h1>
+            <p className="mt-2 text-sm text-muted">
+              {service?.name} con {barber?.name} el{' '}
+              {selectedDate.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })} a las{' '}
+              {formatTime(selectedTime)}.
+            </p>
+            <p className="mt-4 text-xs text-muted">Guarda esta pantalla como comprobante de tu cita.</p>
+          </Card>
+        </div>
+        <PoweredByCortio />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="flex min-h-screen flex-col bg-bg">
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-2xl items-start justify-between px-4 py-6">
           <div className="flex items-center gap-3">
@@ -408,7 +435,7 @@ function PublicBookingPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-4 py-8">
+      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
         {view === 'myAppointments' ? (
           <Card>
             <h2 className="text-base font-semibold text-ink">Mis citas</h2>
@@ -629,6 +656,8 @@ function PublicBookingPage() {
         </>
         )}
       </main>
+
+      <PoweredByCortio />
 
       <Modal
         open={showAuthModal}
