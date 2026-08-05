@@ -3,10 +3,11 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import AuthLayout from '../../layouts/AuthLayout'
 import Input from '../../components/ui/Input'
 import Button from '../../components/ui/Button'
+import GoogleSignInButton from '../../components/auth/GoogleSignInButton'
 import { useAuth } from '../../context/AuthContext'
 
 function LoginPage() {
-  const { login, isAuthenticated, loading: sessionLoading } = useAuth()
+  const { login, loginWithGoogle, isAuthenticated, loading: sessionLoading } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const notice = location.state?.notice
@@ -31,6 +32,19 @@ function LoginPage() {
       navigate('/app')
     } catch (err) {
       setError(err.response?.data?.error || 'No pudimos iniciar sesión. Intenta de nuevo.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleGoogleCredential(credential) {
+    setError('')
+    setLoading(true)
+    try {
+      await loginWithGoogle(credential)
+      navigate('/app')
+    } catch (err) {
+      setError(err.response?.data?.error || 'No pudimos iniciar sesión con Google.')
     } finally {
       setLoading(false)
     }
@@ -79,6 +93,20 @@ function LoginPage() {
           {loading ? 'Ingresando...' : 'Iniciar sesión'}
         </Button>
       </form>
+
+      {Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID) && (
+        <>
+          <div className="mt-6 flex items-center gap-3">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs text-muted">o</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+
+          <div className="mt-4">
+            <GoogleSignInButton onCredential={handleGoogleCredential} />
+          </div>
+        </>
+      )}
 
       <p className="mt-8 text-center text-sm text-muted">
         ¿No tienes cuenta?{' '}

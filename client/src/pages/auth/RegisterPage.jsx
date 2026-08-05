@@ -5,7 +5,17 @@ import Input from '../../components/ui/Input'
 import Button from '../../components/ui/Button'
 import Switch from '../../components/ui/Switch'
 import Stepper from '../../components/booking/Stepper'
+import GoogleSignInButton from '../../components/auth/GoogleSignInButton'
 import { useAuth } from '../../context/AuthContext'
+
+// Client-side only — for prefilling the wizard (email, name). The backend independently
+// re-verifies the raw credential with Google before ever trusting it.
+function decodeGoogleCredential(credential) {
+  const base64Url = credential.split('.')[1]
+  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+  const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=')
+  return JSON.parse(atob(padded))
+}
 
 const STEPS = ['Cuenta', 'Datos personales', 'Tu negocio', 'Servicios']
 
@@ -43,6 +53,7 @@ const EMPTY_FORM = {
   email: '',
   password: '',
   confirmPassword: '',
+  googleCredential: null,
   ownerName: '',
   phone: '',
   barbershopName: '',
@@ -95,6 +106,10 @@ function RegisterPage() {
 
   function validateStep(n) {
     if (n === 1) {
+      if (form.googleCredential) {
+        if (!form.email) return 'No pudimos leer tu correo de Google. Intenta de nuevo.'
+        return ''
+      }
       if (!form.email || !form.password || !form.confirmPassword) return 'Completa todos los campos.'
       if (form.password !== form.confirmPassword) return 'Las contraseñas no coinciden.'
       if (form.password.length < 6) return 'La contraseña debe tener al menos 6 caracteres.'
@@ -122,6 +137,26 @@ function RegisterPage() {
   function goBack() {
     setError('')
     setStep((s) => Math.max(s - 1, 1))
+  }
+
+  function handleGoogleCredential(credential) {
+    setError('')
+    try {
+      const payload = decodeGoogleCredential(credential)
+      setForm((f) => ({
+        ...f,
+        email: payload.email || f.email,
+        ownerName: payload.name || f.ownerName,
+        googleCredential: credential,
+      }))
+      setStep(2)
+    } catch {
+      setError('No pudimos leer tu cuenta de Google. Intenta de nuevo.')
+    }
+  }
+
+  function disconnectGoogle() {
+    setForm((f) => ({ ...f, googleCredential: null, password: '', confirmPassword: '' }))
   }
 
   async function handleSubmit(e) {
@@ -154,36 +189,65 @@ function RegisterPage() {
       <form onSubmit={isLastStep ? handleSubmit : goNext} className="mt-6 flex flex-col gap-4">
         {step === 1 && (
           <>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              label="Correo electrónico"
-              placeholder="tucorreo@ejemplo.com"
-              value={form.email}
-              onChange={handleChange}
-              required
-            />
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              label="Contraseña"
-              placeholder="••••••••"
-              value={form.password}
-              onChange={handleChange}
-              required
-            />
-            <Input
-              id="confirmPassword"
-              name="confirmPassword"
-              type="password"
-              label="Confirmar contraseña"
-              placeholder="••••••••"
-              value={form.confirmPassword}
-              onChange={handleChange}
-              required
-            />
+            {form.googleCredential ? (
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-2 px-3.5 py-2.5">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-ink">{form.email}</p>
+                  <p className="text-xs text-muted">Cuenta de Google conectada</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={disconnectGoogle}
+                  className="shrink-0 text-xs font-medium text-muted underline hover:text-ink"
+                >
+                  Cambiar
+                </button>
+              </div>
+            ) : (
+              <>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  label="Correo electrónico"
+                  placeholder="tucorreo@ejemplo.com"
+                  value={form.email}
+                  onChange={handleChange}
+                  required
+                />
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  label="Contraseña"
+                  placeholder="••••••••"
+                  value={form.password}
+                  onChange={handleChange}
+                  required
+                />
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  label="Confirmar contraseña"
+                  placeholder="••••••••"
+                  value={form.confirmPassword}
+                  onChange={handleChange}
+                  required
+                />
+
+                {Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID) && (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <div className="h-px flex-1 bg-border" />
+                      <span className="text-xs text-muted">o</span>
+                      <div className="h-px flex-1 bg-border" />
+                    </div>
+                    <GoogleSignInButton onCredential={handleGoogleCredential} />
+                  </>
+                )}
+              </>
+            )}
           </>
         )}
 

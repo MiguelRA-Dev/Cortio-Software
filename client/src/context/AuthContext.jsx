@@ -28,6 +28,13 @@ export function AuthProvider({ children }) {
     return data.user
   }
 
+  async function loginWithGoogle(credential) {
+    const { data } = await apiClient.post('/auth/google', { credential })
+    localStorage.setItem('token', data.token)
+    setUser(data.user)
+    return data.user
+  }
+
   async function registerBarbershop(payload) {
     const { data } = await apiClient.post('/auth/register-barbershop', payload)
     localStorage.setItem('token', data.token)
@@ -58,6 +65,7 @@ export function AuthProvider({ children }) {
         loading,
         isAuthenticated: Boolean(user),
         login,
+        loginWithGoogle,
         registerBarbershop,
         registerCustomer,
         logout,
