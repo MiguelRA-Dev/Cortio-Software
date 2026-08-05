@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Search } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 import { formatCOP } from '../../lib/format'
@@ -15,6 +15,8 @@ const SEGMENT_FILTERS = [
   { id: 'frequent', label: 'Frecuentes' },
   { id: 'inactive', label: 'Inactivos' },
 ]
+
+const PAGE_SIZE = 20
 
 function daysSince(dateStr) {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000)
@@ -39,6 +41,7 @@ function initials(name) {
 function CustomersPage() {
   const [search, setSearch] = useState('')
   const [segmentFilter, setSegmentFilter] = useState('all')
+  const [page, setPage] = useState(1)
 
   const { data: customers = [], isLoading, isError } = useQuery({ queryKey: ['customers'], queryFn: listCustomers })
 
@@ -59,6 +62,16 @@ function CustomersPage() {
       return matchesSegment && matchesSearch
     })
   }, [enriched, search, segmentFilter])
+
+  // Search/segment changes reshuffle the result set, so land back on page 1 instead
+  // of stranding the user on a now out-of-range page.
+  useEffect(() => {
+    setPage(1)
+  }, [search, segmentFilter])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   return (
     <div>
@@ -104,7 +117,7 @@ function CustomersPage() {
           <p className="py-4 text-sm text-muted">No hay clientes que coincidan con este filtro.</p>
         ) : (
           <div className="flex flex-col divide-y divide-border">
-            {filtered.map((c) => (
+            {paginated.map((c) => (
               <div key={c.id} className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:gap-4">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-sm font-medium text-ink">
@@ -134,6 +147,38 @@ function CustomersPage() {
           </div>
         )}
       </Card>
+
+      {!isLoading && !isError && filtered.length > 0 && totalPages > 1 && (
+        <div className="mt-4 flex items-center justify-between gap-4">
+          <p className="text-xs text-muted">
+            Mostrando {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} de{' '}
+            {filtered.length} clientes
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="rounded-lg border border-border p-2 text-muted hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+              aria-label="Página anterior"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <span className="text-xs font-medium text-ink">
+              Página {currentPage} de {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="rounded-lg border border-border p-2 text-muted hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+              aria-label="Página siguiente"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
