@@ -128,9 +128,30 @@ function SidebarContent({ onNavigate }) {
 }
 
 function SubscriptionBanner() {
+  const { user } = useAuth()
   const { data: status } = useQuery({ queryKey: ['billing-status'], queryFn: getBillingStatus, staleTime: 60_000 })
 
   if (!status) return null
+
+  if (status.deletionRequestedAt) {
+    const purgeDate = new Date(status.scheduledPurgeAt).toLocaleDateString('es-CO', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    })
+    return (
+      <div className="border-b border-danger/30 bg-danger/10 px-4 py-2 text-center text-sm text-danger">
+        Esta barbería se eliminará permanentemente el {purgeDate}.{' '}
+        {user.role === 'owner' ? (
+          <NavLink to="/app/settings" className="font-medium underline">
+            Cancelar eliminación
+          </NavLink>
+        ) : (
+          'Contacta al dueño si esto no era lo esperado.'
+        )}
+      </div>
+    )
+  }
 
   if (status.blocked) {
     return (

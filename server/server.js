@@ -9,6 +9,7 @@ const connectDB = require('./src/config/db');
 const apiRoutes = require('./src/routes');
 const { notFound, errorHandler } = require('./src/middleware/errorHandler');
 const { runBillingJob } = require('./src/jobs/billingJob');
+const { runDeletionJob } = require('./src/jobs/deletionJob');
 
 const app = express();
 
@@ -47,6 +48,12 @@ connectDB()
     // Daily subscription renewal run — charges every barbershop whose paid period ended.
     cron.schedule('0 6 * * *', () => {
       runBillingJob().catch((err) => console.error('[billingJob] Unexpected failure:', err));
+    });
+
+    // Daily purge run — permanently deletes barbershops whose 15-day deletion grace
+    // period has elapsed. Staggered an hour after billing so it never races a renewal.
+    cron.schedule('0 7 * * *', () => {
+      runDeletionJob().catch((err) => console.error('[deletionJob] Unexpected failure:', err));
     });
   })
   .catch((err) => {

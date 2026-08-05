@@ -27,7 +27,13 @@ const barbershopSchema = new mongoose.Schema({
   wompiCardBrand: { type: String },
   // Guards against double-applying the same Wompi transaction if the webhook and the
   // synchronous charge response both try to extend the subscription period.
-  lastPaymentReference: { type: String }
+  lastPaymentReference: { type: String },
+
+  // Self-service "delete my barbershop": set together when the owner requests it, and
+  // both cleared if they cancel within the grace window. deletionJob purges everything
+  // once scheduledPurgeAt has passed.
+  deletionRequestedAt: { type: Date },
+  scheduledPurgeAt: { type: Date }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Barbershop', barbershopSchema);

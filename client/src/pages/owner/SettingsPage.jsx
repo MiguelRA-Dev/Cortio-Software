@@ -1,14 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import QRCode from 'qrcode'
-import { Copy, Check, Camera, Store, ShieldCheck, ShieldAlert } from 'lucide-react'
+import { Copy, Check, Camera, Store, ShieldCheck, ShieldAlert, TriangleAlert } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Badge from '../../components/ui/Badge'
+import Modal from '../../components/ui/Modal'
 import WeeklyScheduleEditor from '../../components/team/WeeklyScheduleEditor'
 import { useAuth } from '../../context/AuthContext'
-import { getMyBarbershop, updateMyBarbershop, uploadBarbershopLogo } from '../../api/barbershops'
+import {
+  getMyBarbershop,
+  updateMyBarbershop,
+  uploadBarbershopLogo,
+  requestBarbershopDeletion,
+  cancelBarbershopDeletion,
+} from '../../api/barbershops'
 import { updateMe, resendVerification } from '../../api/auth'
 import { resolveAssetUrl } from '../../lib/assets'
 
@@ -104,6 +111,27 @@ function SettingsPage() {
     if (file) logoMutation.mutate(file)
     e.target.value = ''
   }
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+
+  const requestDeletionMutation = useMutation({
+    mutationFn: requestBarbershopDeletion,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['barbershop'] })
+      queryClient.invalidateQueries({ queryKey: ['billing-status'] })
+      setDeleteModalOpen(false)
+      setDeleteConfirmText('')
+    },
+  })
+
+  const cancelDeletionMutation = useMutation({
+    mutationFn: cancelBarbershopDeletion,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['barbershop'] })
+      queryClient.invalidateQueries({ queryKey: ['billing-status'] })
+    },
+  })
 
   function handleCopy() {
     navigator.clipboard.writeText(bookingUrl)
@@ -267,6 +295,92 @@ function SettingsPage() {
           {accountSaved && <span className="text-sm text-success">Cambios guardados</span>}
         </div>
       </form>
+
+      <Card className="mt-4 border-danger/30">
+        <div className="flex items-center gap-2">
+          <TriangleAlert size={16} className="text-danger" />
+          <h3 className="text-sm font-medium text-danger">Zona de peligro</h3>
+        </div>
+
+        {barbershop?.deletionRequestedAt ? (
+          <div className="mt-4">
+            <p className="text-sm text-ink">
+              Esta barbería se eliminará permanentemente el{' '}
+              <span className="font-medium">
+                {new Date(barbershop.scheduledPurgeAt).toLocaleDateString('es-CO', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                })}
+              </span>
+              . Se borrarán todas las citas, ventas, clientes, nómina e inventario. Cancela antes de esa fecha si
+              cambiaste de opinión.
+            </p>
+            <button
+              type="button"
+              onClick={() => cancelDeletionMutation.mutate()}
+              disabled={cancelDeletionMutation.isPending}
+              className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {cancelDeletionMutation.isPending ? 'Cancelando...' : 'Cancelar eliminación'}
+            </button>
+          </div>
+        ) : (
+          <div className="mt-4">
+            <p className="text-sm text-muted">
+              Elimina tu barbería y todos sus datos de Cortio. Tendrás 15 días para cancelar antes de que se borre
+              todo de forma permanente.
+            </p>
+            <button
+              type="button"
+              onClick={() => setDeleteModalOpen(true)}
+              className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg border border-danger/30 bg-danger/10 px-4 py-2.5 text-sm font-medium text-danger transition-colors hover:bg-danger/20"
+            >
+              Eliminar mi barbería
+            </button>
+          </div>
+        )}
+      </Card>
+
+      <Modal
+        open={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false)
+          setDeleteConfirmText('')
+        }}
+        title="Eliminar tu barbería"
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-muted">
+            Esto desactiva <span className="font-medium text-ink">{barbershop?.name}</span> de inmediato y programa
+            el borrado permanente de todos sus datos en 15 días. Tendrás ese tiempo para cancelar si cambias de
+            opinión.
+          </p>
+          <p className="text-sm text-muted">
+            Escribe <span className="font-mono font-medium text-ink">{barbershop?.slug}</span> para confirmar.
+          </p>
+          <Input
+            id="deleteConfirm"
+            value={deleteConfirmText}
+            onChange={(e) => setDeleteConfirmText(e.target.value)}
+            placeholder={barbershop?.slug}
+            autoComplete="off"
+          />
+          {requestDeletionMutation.isError && (
+            <p className="rounded-lg border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
+              {requestDeletionMutation.error.response?.data?.error || 'No pudimos procesar la solicitud.'}
+            </p>
+          )}
+          <button
+            type="button"
+            disabled={deleteConfirmText !== barbershop?.slug || requestDeletionMutation.isPending}
+            onClick={() => requestDeletionMutation.mutate()}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-danger/30 bg-danger/10 px-4 py-2.5 text-sm font-medium text-danger transition-colors hover:bg-danger/20 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {requestDeletionMutation.isPending ? 'Eliminando...' : 'Sí, eliminar permanentemente'}
+          </button>
+        </div>
+      </Modal>
     </div>
   )
 }

@@ -43,7 +43,7 @@ async function applyTransactionResult({ barbershopId, transaction }) {
 
 const getStatus = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findById(req.user.barbershop).select(
-    'subscriptionStatus trialEndsAt currentPeriodEnd wompiCardLastFour wompiCardBrand'
+    'subscriptionStatus trialEndsAt currentPeriodEnd wompiCardLastFour wompiCardBrand deletionRequestedAt scheduledPurgeAt'
   );
   if (!barbershop) {
     throw new ApiError(404, 'Barbershop not found');
@@ -61,6 +61,8 @@ const getStatus = asyncHandler(async (req, res) => {
     currentPeriodEnd: barbershop.currentPeriodEnd,
     trialDaysLeft,
     blocked: isBlocked(barbershop, now),
+    deletionRequestedAt: barbershop.deletionRequestedAt,
+    scheduledPurgeAt: barbershop.scheduledPurgeAt,
     card: barbershop.wompiCardLastFour
       ? { lastFour: barbershop.wompiCardLastFour, brand: barbershop.wompiCardBrand }
       : null,

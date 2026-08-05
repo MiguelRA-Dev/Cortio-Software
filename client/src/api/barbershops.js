@@ -23,3 +23,13 @@ export async function uploadBarbershopLogo(file) {
   })
   return data
 }
+
+export async function requestBarbershopDeletion() {
+  const { data } = await apiClient.post('/barbershops/me/request-deletion')
+  return data
+}
+
+export async function cancelBarbershopDeletion() {
+  const { data } = await apiClient.post('/barbershops/me/cancel-deletion')
+  return data
+}
