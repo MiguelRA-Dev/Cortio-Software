@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { DollarSign, TrendingDown, TrendingUp, Receipt } from 'lucide-react'
+import { DollarSign, TrendingDown, TrendingUp, Receipt, Wallet } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import StatTile from '../../components/ui/StatTile'
 import Input from '../../components/ui/Input'
@@ -9,50 +9,7 @@ import { formatCOP } from '../../lib/format'
 import { getSummary, getByBarber, getByService } from '../../api/reports'
 import { listExpenses } from '../../api/expenses'
 import { toDateKey } from '../../lib/dates'
-
-const RANGE_PRESETS = [
-  { id: '7d', label: 'Últimos 7 días' },
-  { id: 'month', label: 'Este mes' },
-  { id: 'lastMonth', label: 'Mes pasado' },
-  { id: 'custom', label: 'Personalizado' },
-]
-
-function defaultCustomFrom() {
-  const d = new Date()
-  d.setDate(d.getDate() - 6)
-  return toDateKey(d)
-}
-
-function startOfDay(date) {
-  const d = new Date(date)
-  d.setHours(0, 0, 0, 0)
-  return d
-}
-
-function endOfDay(date) {
-  const d = new Date(date)
-  d.setHours(23, 59, 59, 999)
-  return d
-}
-
-function getRangeDates(range, customFrom, customTo) {
-  const now = new Date()
-  if (range === '7d') {
-    const from = startOfDay(now)
-    from.setDate(from.getDate() - 6)
-    return { from: from.toISOString(), to: endOfDay(now).toISOString() }
-  }
-  if (range === 'month') {
-    const from = new Date(now.getFullYear(), now.getMonth(), 1)
-    return { from: from.toISOString(), to: endOfDay(now).toISOString() }
-  }
-  if (range === 'lastMonth') {
-    const from = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    const to = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59)
-    return { from: from.toISOString(), to: to.toISOString() }
-  }
-  return { from: startOfDay(new Date(customFrom)).toISOString(), to: endOfDay(new Date(customTo)).toISOString() }
-}
+import { RANGE_PRESETS, defaultCustomFrom, getRangeDates } from '../../lib/reportRange'
 
 function ReportsPage() {
   const [range, setRange] = useState('month')
@@ -61,7 +18,7 @@ function ReportsPage() {
 
   const { from, to } = useMemo(() => getRangeDates(range, customFrom, customTo), [range, customFrom, customTo])
 
-  const { data: summary = { totalIncome: 0, totalExpenses: 0, netProfit: 0, salesCount: 0, averageTicket: 0 } } = useQuery(
+  const { data: summary = { totalIncome: 0, totalExpenses: 0, totalPayroll: 0, netProfit: 0, salesCount: 0, averageTicket: 0 } } = useQuery(
     { queryKey: ['reports', 'summary', from, to], queryFn: () => getSummary({ from, to }) }
   )
   const { data: byBarber = [] } = useQuery({
@@ -137,6 +94,7 @@ function ReportsPage() {
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile label="Ingresos" value={formatCOP(summary.totalIncome)} icon={DollarSign} />
         <StatTile label="Gastos" value={formatCOP(summary.totalExpenses)} icon={TrendingDown} />
+        <StatTile label="Nómina pagada" value={formatCOP(summary.totalPayroll)} icon={Wallet} />
         <StatTile label="Utilidad neta" value={formatCOP(summary.netProfit)} icon={TrendingUp} />
         <StatTile label="Ticket promedio" value={formatCOP(summary.averageTicket)} icon={Receipt} />
       </div>

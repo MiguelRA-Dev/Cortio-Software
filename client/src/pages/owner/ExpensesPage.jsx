@@ -12,7 +12,7 @@ import { formatCOP } from '../../lib/format'
 import { listExpenses, createExpense, updateExpense, deleteExpense } from '../../api/expenses'
 import { toDateKey, toUtcDateInput } from '../../lib/dates'
 
-const CATEGORIES = ['Arriendo', 'Servicios públicos', 'Insumos', 'Nómina', 'Marketing', 'Mantenimiento', 'Otro']
+const CATEGORIES = ['Arriendo', 'Servicios públicos', 'Insumos', 'Marketing', 'Mantenimiento', 'Otro']
 
 const TODAY = new Date()
 

@@ -1,5 +1,6 @@
 const Sale = require('../models/Sale');
 const Expense = require('../models/Expense');
+const PayrollEntry = require('../models/PayrollEntry');
 const Appointment = require('../models/Appointment');
 const User = require('../models/User');
 
@@ -23,10 +24,18 @@ async function getSummary(barbershopId, from, to) {
   const expenses = await Expense.find(expenseFilter).select('amount');
   const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
 
+  // Paid payroll is a real labor cost but lives in its own collection (not Expense),
+  // so it has to be pulled in separately to land in the same profitability picture.
+  const payrollFilter = { barbershop: barbershopId, status: 'paid' };
+  if (range) payrollFilter.paidAt = range;
+  const payrollEntries = await PayrollEntry.find(payrollFilter).select('netAmount');
+  const totalPayroll = payrollEntries.reduce((sum, p) => sum + p.netAmount, 0);
+
   return {
     totalIncome,
     totalExpenses,
-    netProfit: totalIncome - totalExpenses,
+    totalPayroll,
+    netProfit: totalIncome - totalExpenses - totalPayroll,
     salesCount: sales.length,
     averageTicket: sales.length ? totalIncome / sales.length : 0
   };
