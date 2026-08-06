@@ -1,19 +1,20 @@
 const express = require('express');
 const authController = require('../controllers/authController');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { authLimiter } = require('../middleware/rateLimit');
 
 const router = express.Router();
 
-router.post('/register-barbershop', authController.registerBarbershop);
-router.post('/register-customer', authController.registerCustomer);
-router.post('/login', authController.login);
-router.post('/forgot-password', authController.forgotPassword);
-router.post('/reset-password', authController.resetPassword);
-router.post('/google', authController.googleLogin);
+router.post('/register-barbershop', authLimiter, authController.registerBarbershop);
+router.post('/register-customer', authLimiter, authController.registerCustomer);
+router.post('/login', authLimiter, authController.login);
+router.post('/forgot-password', authLimiter, authController.forgotPassword);
+router.post('/reset-password', authLimiter, authController.resetPassword);
+router.post('/google', authLimiter, authController.googleLogin);
 router.get('/me', requireAuth, authController.me);
 router.patch('/me', requireAuth, authController.updateMe);
 router.post('/register-barber', requireAuth, requireRole('owner'), authController.registerBarber);
-router.post('/verify-email', authController.verifyEmail);
-router.post('/resend-verification', requireAuth, authController.resendVerification);
+router.post('/verify-email', authLimiter, authController.verifyEmail);
+router.post('/resend-verification', requireAuth, authLimiter, authController.resendVerification);
 
 module.exports = router;

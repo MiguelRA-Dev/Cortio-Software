@@ -13,6 +13,11 @@ const { runDeletionJob } = require('./src/jobs/deletionJob');
 
 const app = express();
 
+// Azure App Service (and most PaaS hosts) sit behind a reverse proxy — without this,
+// every request looks like it comes from the proxy's own IP, which breaks per-IP
+// rate limiting (everyone would share one bucket).
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(cors());
 app.use(morgan('dev'));
