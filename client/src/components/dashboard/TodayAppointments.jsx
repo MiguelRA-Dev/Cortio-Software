@@ -3,22 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import Card from '../ui/Card'
 import Badge from '../ui/Badge'
 import { listMyAppointments } from '../../api/appointments'
-
-const STATUS_LABEL = {
-  completed: 'Completada',
-  confirmed: 'Confirmada',
-  pending: 'Pendiente',
-  cancelled: 'Cancelada',
-  no_show: 'No asistió',
-}
-
-const STATUS_VARIANT = {
-  completed: 'success',
-  confirmed: 'neutral',
-  pending: 'muted',
-  cancelled: 'danger',
-  no_show: 'danger',
-}
+import { STATUS_VARIANT, getStaffStatusLabel } from '../../lib/appointmentStatus'
 
 function formatTime(date) {
   return date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })
@@ -56,7 +41,7 @@ function TodayAppointments() {
                   {a.service?.name} · {a.barber?.name}
                 </p>
               </div>
-              <Badge variant={STATUS_VARIANT[a.status]}>{STATUS_LABEL[a.status]}</Badge>
+              <Badge variant={STATUS_VARIANT[a.status]}>{getStaffStatusLabel(a)}</Badge>
             </div>
           ))}
         </div>

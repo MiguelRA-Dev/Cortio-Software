@@ -13,7 +13,11 @@ const appointmentSchema = new mongoose.Schema({
     default: 'pending'
   },
   priceAtBooking: { type: Number, required: true, min: 0 },
-  notes: { type: String, trim: true }
+  notes: { type: String, trim: true },
+
+  // Only meaningful when status is 'cancelled' — lets the owner/barber tell a
+  // customer-initiated cancellation apart from one they made themselves.
+  cancelledBy: { type: String, enum: ['owner', 'barber', 'customer'] }
 }, { timestamps: true });
 
 appointmentSchema.index({ barber: 1, startTime: 1 });

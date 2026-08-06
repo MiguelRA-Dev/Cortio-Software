@@ -16,7 +16,7 @@ import { getPublicBarbershop } from '../../api/barbershops'
 import { listPublicBarbers } from '../../api/barbers'
 import { listPublicServices } from '../../api/services'
 import { listPublicPortfolio } from '../../api/portfolio'
-import { getAvailability, createAppointment, listMyAppointments } from '../../api/appointments'
+import { getAvailability, createAppointment, listMyAppointments, cancelMyAppointment } from '../../api/appointments'
 import { listMyReviews, createReview } from '../../api/reviews'
 import { toDateKey } from '../../lib/dates'
 
@@ -179,6 +179,7 @@ function formatTime(iso) {
 function PublicBookingPage() {
   const { slug } = useParams()
   const { user, isAuthenticated, login, registerCustomer, logout } = useAuth()
+  const queryClient = useQueryClient()
 
   const [step, setStep] = useState(1)
   const [barber, setBarber] = useState(null)
@@ -227,6 +228,11 @@ function PublicBookingPage() {
     [myAppointments, barbershop]
   )
   const reviewedAppointmentIds = useMemo(() => new Set(myReviews.map((r) => r.appointment)), [myReviews])
+
+  const cancelMutation = useMutation({
+    mutationFn: cancelMyAppointment,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['my-appointments'] }),
+  })
   const { data: barbers = [] } = useQuery({
     queryKey: ['public-barbers', slug],
     queryFn: () => listPublicBarbers(slug),
@@ -456,6 +462,17 @@ function PublicBookingPage() {
                       </div>
                       <span className="shrink-0 text-xs text-muted">{STATUS_LABEL[a.status]}</span>
                     </div>
+
+                    {(a.status === 'pending' || a.status === 'confirmed') && (
+                      <button
+                        type="button"
+                        onClick={() => cancelMutation.mutate(a._id)}
+                        disabled={cancelMutation.isPending && cancelMutation.variables === a._id}
+                        className="mt-2 text-xs font-medium text-danger underline disabled:opacity-50"
+                      >
+                        {cancelMutation.isPending && cancelMutation.variables === a._id ? 'Cancelando...' : 'Cancelar cita'}
+                      </button>
+                    )}
 
                     {a.status === 'completed' && !reviewedAppointmentIds.has(a._id) && (
                       reviewingId === a._id ? (

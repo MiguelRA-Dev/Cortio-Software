@@ -15,6 +15,11 @@ export async function rescheduleAppointment(id, startTime) {
   return data
 }
 
+export async function cancelMyAppointment(id) {
+  const { data } = await apiClient.patch(`/appointments/${id}/cancel`)
+  return data
+}
+
 export async function getAvailability(slug, { barberId, serviceId, date }) {
   const { data } = await apiClient.get(`/appointments/availability/${slug}`, {
     params: { barberId, serviceId, date },

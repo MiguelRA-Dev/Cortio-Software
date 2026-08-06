@@ -30,10 +30,13 @@ const STATUS_STYLE = {
 }
 
 function EventContent({ event }) {
+  const cancelledByCustomer = event.status === 'cancelled' && event.cancelledBy === 'customer'
   return (
     <div className="overflow-hidden text-xs leading-tight">
       <p className="truncate font-medium">{event.customer}</p>
-      <p className="truncate text-[11px] opacity-75">{event.service}</p>
+      <p className="truncate text-[11px] opacity-75">
+        {cancelledByCustomer ? 'Cancelada por el cliente' : event.service}
+      </p>
     </div>
   )
 }

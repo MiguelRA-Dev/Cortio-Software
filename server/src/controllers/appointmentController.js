@@ -148,6 +148,24 @@ const updateStatus = asyncHandler(async (req, res) => {
   }
 
   appointment.status = status;
+  appointment.cancelledBy = status === 'cancelled' ? req.user.role : undefined;
+  await appointment.save();
+  res.json(appointment);
+});
+
+const CANCELLABLE_STATUSES = ['pending', 'confirmed'];
+
+const cancelMine = asyncHandler(async (req, res) => {
+  const appointment = await Appointment.findOne({ _id: req.params.id, customer: req.user._id });
+  if (!appointment) {
+    throw new ApiError(404, 'Appointment not found');
+  }
+  if (!CANCELLABLE_STATUSES.includes(appointment.status)) {
+    throw new ApiError(409, 'This appointment can no longer be cancelled');
+  }
+
+  appointment.status = 'cancelled';
+  appointment.cancelledBy = 'customer';
   await appointment.save();
   res.json(appointment);
 });
@@ -200,4 +218,4 @@ const reschedule = asyncHandler(async (req, res) => {
   res.json(appointment);
 });
 
-module.exports = { getAvailability, create, listMine, updateStatus, reschedule };
+module.exports = { getAvailability, create, listMine, updateStatus, cancelMine, reschedule };

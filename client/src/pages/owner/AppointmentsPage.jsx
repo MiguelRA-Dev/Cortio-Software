@@ -9,6 +9,7 @@ import BarberAgendaPage from '../barber/BarberAgendaPage'
 import { listMyAppointments, updateAppointmentStatus } from '../../api/appointments'
 import { listTeam } from '../../api/barbers'
 import { toDateKey } from '../../lib/dates'
+import { STATUS_VARIANT, getStaffStatusLabel } from '../../lib/appointmentStatus'
 
 const STATUS_FILTERS = [
   { id: 'all', label: 'Todas' },
@@ -18,23 +19,6 @@ const STATUS_FILTERS = [
   { id: 'cancelled', label: 'Cancelada' },
   { id: 'no_show', label: 'No asistió' },
 ]
-
-const STATUS_LABEL = {
-  completed: 'Completada',
-  confirmed: 'Confirmada',
-  pending: 'Pendiente',
-  cancelled: 'Cancelada',
-  no_show: 'No asistió',
-}
-
-const STATUS_VARIANT = {
-  completed: 'success',
-  confirmed: 'neutral',
-  pending: 'muted',
-  cancelled: 'danger',
-  no_show: 'danger',
-}
-
 
 function formatTime(date) {
   return date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })
@@ -78,6 +62,7 @@ function AppointmentsPage() {
         customer: a.customer?.name,
         service: a.service?.name,
         status: a.status,
+        cancelledBy: a.cancelledBy,
         start: new Date(a.startTime),
         end: new Date(a.endTime),
       })),
@@ -208,7 +193,7 @@ function AppointmentsPage() {
                           <p className="truncate text-sm font-medium text-ink">{a.customer?.name}</p>
                           <p className="truncate text-xs text-muted">{a.service?.name}</p>
                         </div>
-                        <Badge variant={STATUS_VARIANT[a.status]}>{STATUS_LABEL[a.status]}</Badge>
+                        <Badge variant={STATUS_VARIANT[a.status]}>{getStaffStatusLabel(a)}</Badge>
                         {(a.status === 'pending' || a.status === 'confirmed') && (
                           <div className="flex shrink-0 gap-1">
                             <button

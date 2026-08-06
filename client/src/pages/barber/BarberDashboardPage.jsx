@@ -6,15 +6,7 @@ import StatTile from '../../components/ui/StatTile'
 import Badge from '../../components/ui/Badge'
 import { formatCOP } from '../../lib/format'
 import { listMyAppointments, updateAppointmentStatus } from '../../api/appointments'
-
-const STATUS_LABEL = {
-  completed: 'Completada',
-  confirmed: 'Confirmada',
-  pending: 'Pendiente',
-  cancelled: 'Cancelada',
-  no_show: 'No asistió',
-}
-const STATUS_VARIANT = { completed: 'success', confirmed: 'neutral', pending: 'muted', cancelled: 'danger', no_show: 'danger' }
+import { STATUS_VARIANT, getStaffStatusLabel } from '../../lib/appointmentStatus'
 
 const today = new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
 
@@ -88,7 +80,7 @@ function BarberDashboardPage() {
                   <p className="truncate text-sm font-medium text-ink">{a.customer?.name}</p>
                   <p className="truncate text-xs text-muted">{a.service?.name}</p>
                 </div>
-                <Badge variant={STATUS_VARIANT[a.status]}>{STATUS_LABEL[a.status]}</Badge>
+                <Badge variant={STATUS_VARIANT[a.status]}>{getStaffStatusLabel(a)}</Badge>
                 {(a.status === 'pending' || a.status === 'confirmed') && (
                   <div className="flex shrink-0 gap-1">
                     <button
