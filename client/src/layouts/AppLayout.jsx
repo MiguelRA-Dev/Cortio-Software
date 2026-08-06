@@ -18,6 +18,7 @@ import {
   LogOut,
   Menu,
   X,
+  MessageCircle,
 } from 'lucide-react'
 import ThemeToggle from '../components/ui/ThemeToggle'
 import { useAuth } from '../context/AuthContext'
@@ -195,6 +196,23 @@ function EmailVerificationBanner() {
   )
 }
 
+const SUPPORT_WHATSAPP_NUMBER = '573118205548'
+
+function SupportWhatsAppButton() {
+  return (
+    <a
+      href={`https://wa.me/${SUPPORT_WHATSAPP_NUMBER}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="fixed bottom-5 right-5 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg transition-transform hover:scale-105"
+      aria-label="Contactar soporte por WhatsApp"
+      title="Contactar soporte por WhatsApp"
+    >
+      <MessageCircle size={26} strokeWidth={2} />
+    </a>
+  )
+}
+
 function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const { user } = useAuth()
@@ -255,6 +273,8 @@ function AppLayout() {
           <Outlet />
         </main>
       </div>
+
+      <SupportWhatsAppButton />
     </div>
   )
 }
