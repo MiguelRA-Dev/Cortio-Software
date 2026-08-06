@@ -7,24 +7,24 @@ const create = asyncHandler(async (req, res) => {
   const { appointmentId, rating, comment } = req.body;
 
   if (!appointmentId) {
-    throw new ApiError(400, 'appointmentId is required');
+    throw new ApiError(400, 'appointmentId es requerido');
   }
   const numericRating = Number(rating);
   if (!Number.isInteger(numericRating) || numericRating < 1 || numericRating > 5) {
-    throw new ApiError(400, 'rating must be an integer between 1 and 5');
+    throw new ApiError(400, 'rating debe ser un número entero entre 1 y 5');
   }
 
   const appointment = await Appointment.findOne({ _id: appointmentId, customer: req.user._id });
   if (!appointment) {
-    throw new ApiError(404, 'Appointment not found');
+    throw new ApiError(404, 'Cita no encontrada');
   }
   if (appointment.status !== 'completed') {
-    throw new ApiError(409, 'You can only review a completed appointment');
+    throw new ApiError(409, 'Solo puedes calificar una cita completada');
   }
 
   const existing = await Review.findOne({ appointment: appointment._id });
   if (existing) {
-    throw new ApiError(409, 'This appointment has already been reviewed');
+    throw new ApiError(409, 'Esta cita ya fue calificada');
   }
 
   const review = await Review.create({

@@ -11,13 +11,13 @@ const ACTIVE_STATUSES = ['pending', 'confirmed'];
 
 async function resolveBookingContext({ slug, barberId, serviceId }) {
   const barbershop = await Barbershop.findOne({ slug, active: true });
-  if (!barbershop) throw new ApiError(404, 'Barbershop not found');
+  if (!barbershop) throw new ApiError(404, 'Barbería no encontrada');
 
   const barber = await User.findOne({ _id: barberId, barbershop: barbershop._id, role: 'barber', active: true });
-  if (!barber) throw new ApiError(404, 'Barber not found');
+  if (!barber) throw new ApiError(404, 'Barbero no encontrado');
 
   const service = await Service.findOne({ _id: serviceId, barbershop: barbershop._id, active: true });
-  if (!service) throw new ApiError(404, 'Service not found');
+  if (!service) throw new ApiError(404, 'Servicio no encontrado');
 
   return { barbershop, barber, service };
 }
@@ -27,14 +27,14 @@ const getAvailability = asyncHandler(async (req, res) => {
   const { barberId, serviceId, date } = req.query;
 
   if (!barberId || !serviceId || !date) {
-    throw new ApiError(400, 'barberId, serviceId and date are required');
+    throw new ApiError(400, 'barberId, serviceId y date son requeridos');
   }
 
   const { barber, service } = await resolveBookingContext({ slug, barberId, serviceId });
 
   const dayStart = parseDateOnly(date);
   if (Number.isNaN(dayStart.getTime())) {
-    throw new ApiError(400, 'Invalid date, expected YYYY-MM-DD');
+    throw new ApiError(400, 'Fecha inválida, se espera YYYY-MM-DD');
   }
   const dayEnd = new Date(dayStart);
   dayEnd.setDate(dayEnd.getDate() + 1);
@@ -58,14 +58,14 @@ const getAvailability = asyncHandler(async (req, res) => {
 const create = asyncHandler(async (req, res) => {
   const { slug, barberId, serviceId, startTime } = req.body;
   if (!slug || !barberId || !serviceId || !startTime) {
-    throw new ApiError(400, 'slug, barberId, serviceId and startTime are required');
+    throw new ApiError(400, 'slug, barberId, serviceId y startTime son requeridos');
   }
 
   const { barbershop, barber, service } = await resolveBookingContext({ slug, barberId, serviceId });
 
   const start = new Date(startTime);
   if (Number.isNaN(start.getTime())) {
-    throw new ApiError(400, 'Invalid startTime');
+    throw new ApiError(400, 'startTime inválido');
   }
   const end = new Date(start.getTime() + service.durationMinutes * 60000);
 
@@ -88,7 +88,7 @@ const create = asyncHandler(async (req, res) => {
   });
 
   if (!availableSlots.includes(start.toISOString())) {
-    throw new ApiError(409, 'The selected slot is no longer available');
+    throw new ApiError(409, 'El horario seleccionado ya no está disponible');
   }
 
   const appointment = await Appointment.create({
@@ -130,21 +130,21 @@ const BARBER_ALLOWED_STATUSES = ['cancelled', 'no_show'];
 const updateStatus = asyncHandler(async (req, res) => {
   const { status } = req.body;
   if (!VALID_STATUSES.includes(status)) {
-    throw new ApiError(400, `status must be one of: ${VALID_STATUSES.join(', ')}`);
+    throw new ApiError(400, `status debe ser uno de: ${VALID_STATUSES.join(', ')}`);
   }
 
   const appointment = await Appointment.findById(req.params.id);
   if (!appointment) {
-    throw new ApiError(404, 'Appointment not found');
+    throw new ApiError(404, 'Cita no encontrada');
   }
 
   const isOwner = req.user.role === 'owner' && appointment.barbershop.toString() === req.user.barbershop.toString();
   const isAssignedBarber = req.user.role === 'barber' && appointment.barber.toString() === req.user._id.toString();
   if (!isOwner && !isAssignedBarber) {
-    throw new ApiError(403, 'You do not have permission to update this appointment');
+    throw new ApiError(403, 'No tienes permiso para modificar esta cita');
   }
   if (isAssignedBarber && !BARBER_ALLOWED_STATUSES.includes(status)) {
-    throw new ApiError(403, 'Barbers can only cancel or mark appointments as no-show');
+    throw new ApiError(403, 'Los barberos solo pueden cancelar o marcar citas como no asistió');
   }
 
   appointment.status = status;
@@ -158,10 +158,10 @@ const CANCELLABLE_STATUSES = ['pending', 'confirmed'];
 const cancelMine = asyncHandler(async (req, res) => {
   const appointment = await Appointment.findOne({ _id: req.params.id, customer: req.user._id });
   if (!appointment) {
-    throw new ApiError(404, 'Appointment not found');
+    throw new ApiError(404, 'Cita no encontrada');
   }
   if (!CANCELLABLE_STATUSES.includes(appointment.status)) {
-    throw new ApiError(409, 'This appointment can no longer be cancelled');
+    throw new ApiError(409, 'Esta cita ya no se puede cancelar');
   }
 
   appointment.status = 'cancelled';
@@ -175,25 +175,25 @@ const RESCHEDULABLE_STATUSES = ['pending', 'confirmed'];
 const reschedule = asyncHandler(async (req, res) => {
   const { startTime } = req.body;
   if (!startTime) {
-    throw new ApiError(400, 'startTime is required');
+    throw new ApiError(400, 'startTime es requerido');
   }
   const newStart = new Date(startTime);
   if (Number.isNaN(newStart.getTime())) {
-    throw new ApiError(400, 'Invalid startTime');
+    throw new ApiError(400, 'startTime inválido');
   }
 
   const appointment = await Appointment.findById(req.params.id);
   if (!appointment) {
-    throw new ApiError(404, 'Appointment not found');
+    throw new ApiError(404, 'Cita no encontrada');
   }
 
   const isOwner = req.user.role === 'owner' && appointment.barbershop.toString() === req.user.barbershop.toString();
   const isAssignedBarber = req.user.role === 'barber' && appointment.barber.toString() === req.user._id.toString();
   if (!isOwner && !isAssignedBarber) {
-    throw new ApiError(403, 'You do not have permission to reschedule this appointment');
+    throw new ApiError(403, 'No tienes permiso para reprogramar esta cita');
   }
   if (!RESCHEDULABLE_STATUSES.includes(appointment.status)) {
-    throw new ApiError(409, 'Only pending or confirmed appointments can be rescheduled');
+    throw new ApiError(409, 'Solo se pueden reprogramar citas pendientes o confirmadas');
   }
 
   // Preserve the originally booked duration regardless of the service's current duration.
@@ -209,7 +209,7 @@ const reschedule = asyncHandler(async (req, res) => {
     endTime: { $gt: newStart }
   });
   if (conflict) {
-    throw new ApiError(409, 'The barber already has an appointment at that time');
+    throw new ApiError(409, 'El barbero ya tiene una cita a esa hora');
   }
 
   appointment.startTime = newStart;

@@ -46,7 +46,7 @@ const getStatus = asyncHandler(async (req, res) => {
     'subscriptionStatus trialEndsAt currentPeriodEnd wompiCardLastFour wompiCardBrand deletionRequestedAt scheduledPurgeAt'
   );
   if (!barbershop) {
-    throw new ApiError(404, 'Barbershop not found');
+    throw new ApiError(404, 'Barbería no encontrada');
   }
 
   const now = new Date();
@@ -73,17 +73,17 @@ const getStatus = asyncHandler(async (req, res) => {
 const attachPaymentMethod = asyncHandler(async (req, res) => {
   const { cardToken } = req.body;
   if (!cardToken) {
-    throw new ApiError(400, 'cardToken is required');
+    throw new ApiError(400, 'cardToken es requerido');
   }
 
   const priceCOP = Number(process.env.SUBSCRIPTION_PRICE_COP);
   if (!priceCOP) {
-    throw new ApiError(500, 'SUBSCRIPTION_PRICE_COP is not configured on the server');
+    throw new ApiError(500, 'SUBSCRIPTION_PRICE_COP no está configurado en el servidor');
   }
 
   const barbershop = await Barbershop.findById(req.user.barbershop);
   if (!barbershop) {
-    throw new ApiError(404, 'Barbershop not found');
+    throw new ApiError(404, 'Barbería no encontrada');
   }
 
   const { acceptanceToken, personalAuthToken } = await getAcceptanceTokens();

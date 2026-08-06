@@ -9,24 +9,24 @@ const PAYMENT_METHODS = ['cash', 'card', 'transfer', 'other'];
 
 async function getBarberOrThrow(barberId, barbershopId) {
   const barber = await User.findOne({ _id: barberId, barbershop: barbershopId, role: 'barber' });
-  if (!barber) throw new ApiError(404, 'Barber not found');
+  if (!barber) throw new ApiError(404, 'Barbero no encontrado');
   return barber;
 }
 
 function normalizeLines(lines) {
   if (lines === undefined) return [];
-  if (!Array.isArray(lines)) throw new ApiError(400, 'lines must be an array');
+  if (!Array.isArray(lines)) throw new ApiError(400, 'lines debe ser un arreglo');
   return lines.map((line) => {
     const { type, label, amount } = line || {};
     if (!LINE_TYPES.includes(type)) {
-      throw new ApiError(400, `line type must be one of: ${LINE_TYPES.join(', ')}`);
+      throw new ApiError(400, `el tipo de línea debe ser uno de: ${LINE_TYPES.join(', ')}`);
     }
     if (!label || !String(label).trim()) {
-      throw new ApiError(400, 'Every line needs a label');
+      throw new ApiError(400, 'Cada línea necesita una etiqueta');
     }
     const numericAmount = Number(amount);
     if (!Number.isFinite(numericAmount) || numericAmount < 0) {
-      throw new ApiError(400, 'Every line needs a non-negative amount');
+      throw new ApiError(400, 'Cada línea necesita un monto no negativo');
     }
     return { type, label: String(label).trim(), amount: numericAmount };
   });
@@ -37,7 +37,7 @@ function computeNet(grossAmount, lines) {
   const deductions = lines.filter((l) => l.type === 'deduction').reduce((sum, l) => sum + l.amount, 0);
   const net = grossAmount + bonuses - deductions;
   if (net < 0) {
-    throw new ApiError(400, 'Deductions cannot exceed the gross amount plus bonuses');
+    throw new ApiError(400, 'Los descuentos no pueden superar el monto bruto más los bonos');
   }
   return net;
 }
@@ -52,7 +52,7 @@ async function assertNoOverlap({ barbershop, barberId, start, end, excludeId }) 
   if (excludeId) filter._id = { $ne: excludeId };
   const conflict = await PayrollEntry.findOne(filter);
   if (conflict) {
-    throw new ApiError(409, 'This barber already has a payroll entry covering part of that period');
+    throw new ApiError(409, 'Este barbero ya tiene una liquidación que cubre parte de ese período');
   }
 }
 
@@ -60,7 +60,7 @@ function parsePeriod(periodStart, periodEnd) {
   const start = new Date(periodStart);
   const end = new Date(periodEnd);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
-    throw new ApiError(400, 'Invalid period: periodStart must be before periodEnd');
+    throw new ApiError(400, 'Período inválido: periodStart debe ser antes de periodEnd');
   }
   return { start, end };
 }
@@ -68,7 +68,7 @@ function parsePeriod(periodStart, periodEnd) {
 const preview = asyncHandler(async (req, res) => {
   const { barberId, periodStart, periodEnd } = req.query;
   if (!barberId || !periodStart || !periodEnd) {
-    throw new ApiError(400, 'barberId, periodStart and periodEnd are required');
+    throw new ApiError(400, 'barberId, periodStart y periodEnd son requeridos');
   }
 
   const barber = await getBarberOrThrow(barberId, req.user.barbershop);
@@ -79,7 +79,7 @@ const preview = asyncHandler(async (req, res) => {
 const create = asyncHandler(async (req, res) => {
   const { barberId, periodStart, periodEnd, lines } = req.body;
   if (!barberId || !periodStart || !periodEnd) {
-    throw new ApiError(400, 'barberId, periodStart and periodEnd are required');
+    throw new ApiError(400, 'barberId, periodStart y periodEnd son requeridos');
   }
 
   const { start, end } = parsePeriod(periodStart, periodEnd);
@@ -108,10 +108,10 @@ const create = asyncHandler(async (req, res) => {
 const update = asyncHandler(async (req, res) => {
   const entry = await PayrollEntry.findOne({ _id: req.params.id, barbershop: req.user.barbershop });
   if (!entry) {
-    throw new ApiError(404, 'Payroll entry not found');
+    throw new ApiError(404, 'Liquidación no encontrada');
   }
   if (entry.status !== 'pending') {
-    throw new ApiError(409, 'Only pending payroll entries can be edited');
+    throw new ApiError(409, 'Solo las liquidaciones pendientes se pueden editar');
   }
 
   const { barberId, periodStart, periodEnd, lines } = req.body;
@@ -146,10 +146,10 @@ const update = asyncHandler(async (req, res) => {
 const remove = asyncHandler(async (req, res) => {
   const entry = await PayrollEntry.findOne({ _id: req.params.id, barbershop: req.user.barbershop });
   if (!entry) {
-    throw new ApiError(404, 'Payroll entry not found');
+    throw new ApiError(404, 'Liquidación no encontrada');
   }
   if (entry.status !== 'pending') {
-    throw new ApiError(409, 'Only pending payroll entries can be deleted');
+    throw new ApiError(409, 'Solo las liquidaciones pendientes se pueden eliminar');
   }
   await entry.deleteOne();
   res.status(204).send();
@@ -182,7 +182,7 @@ const getById = asyncHandler(async (req, res) => {
     .populate('barber', 'name')
     .populate({ path: 'sales', select: 'items total createdAt source' });
   if (!entry) {
-    throw new ApiError(404, 'Payroll entry not found');
+    throw new ApiError(404, 'Liquidación no encontrada');
   }
   res.json(entry);
 });
@@ -190,15 +190,15 @@ const getById = asyncHandler(async (req, res) => {
 const markPaid = asyncHandler(async (req, res) => {
   const { paymentMethod } = req.body;
   if (!PAYMENT_METHODS.includes(paymentMethod)) {
-    throw new ApiError(400, `paymentMethod must be one of: ${PAYMENT_METHODS.join(', ')}`);
+    throw new ApiError(400, `paymentMethod debe ser uno de: ${PAYMENT_METHODS.join(', ')}`);
   }
 
   const entry = await PayrollEntry.findOne({ _id: req.params.id, barbershop: req.user.barbershop });
   if (!entry) {
-    throw new ApiError(404, 'Payroll entry not found');
+    throw new ApiError(404, 'Liquidación no encontrada');
   }
   if (entry.status === 'paid') {
-    throw new ApiError(409, 'This payroll entry is already paid');
+    throw new ApiError(409, 'Esta liquidación ya está pagada');
   }
   entry.status = 'paid';
   entry.paymentMethod = paymentMethod;

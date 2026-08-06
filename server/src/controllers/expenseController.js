@@ -5,7 +5,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const create = asyncHandler(async (req, res) => {
   const { category, amount, description, date } = req.body;
   if (!category || amount === undefined) {
-    throw new ApiError(400, 'category and amount are required');
+    throw new ApiError(400, 'category y amount son requeridos');
   }
 
   const expense = await Expense.create({
@@ -36,7 +36,7 @@ const ALLOWED_UPDATE_FIELDS = ['category', 'amount', 'description', 'date'];
 const update = asyncHandler(async (req, res) => {
   const expense = await Expense.findOne({ _id: req.params.id, barbershop: req.user.barbershop });
   if (!expense) {
-    throw new ApiError(404, 'Expense not found');
+    throw new ApiError(404, 'Gasto no encontrado');
   }
 
   for (const field of ALLOWED_UPDATE_FIELDS) {
@@ -51,7 +51,7 @@ const update = asyncHandler(async (req, res) => {
 const remove = asyncHandler(async (req, res) => {
   const expense = await Expense.findOneAndDelete({ _id: req.params.id, barbershop: req.user.barbershop });
   if (!expense) {
-    throw new ApiError(404, 'Expense not found');
+    throw new ApiError(404, 'Gasto no encontrado');
   }
   res.json({ success: true });
 });

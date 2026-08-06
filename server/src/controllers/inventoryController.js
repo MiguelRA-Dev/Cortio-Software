@@ -6,19 +6,19 @@ const asyncHandler = require('../utils/asyncHandler');
 const createMovement = asyncHandler(async (req, res) => {
   const { type, quantity, reason } = req.body;
   if (!['in', 'out'].includes(type)) {
-    throw new ApiError(400, "type must be 'in' or 'out'");
+    throw new ApiError(400, "type debe ser 'in' o 'out'");
   }
   if (!quantity || quantity < 1) {
-    throw new ApiError(400, 'quantity must be a positive number');
+    throw new ApiError(400, 'quantity debe ser un número positivo');
   }
 
   const product = await Product.findOne({ _id: req.params.productId, barbershop: req.user.barbershop });
   if (!product) {
-    throw new ApiError(404, 'Product not found');
+    throw new ApiError(404, 'Producto no encontrado');
   }
 
   if (type === 'out' && product.stockQuantity < quantity) {
-    throw new ApiError(409, `Insufficient stock: only ${product.stockQuantity} available`);
+    throw new ApiError(409, `Stock insuficiente: solo hay ${product.stockQuantity} disponibles`);
   }
 
   product.stockQuantity += type === 'in' ? quantity : -quantity;
@@ -39,7 +39,7 @@ const createMovement = asyncHandler(async (req, res) => {
 const listMovements = asyncHandler(async (req, res) => {
   const product = await Product.findOne({ _id: req.params.productId, barbershop: req.user.barbershop });
   if (!product) {
-    throw new ApiError(404, 'Product not found');
+    throw new ApiError(404, 'Producto no encontrado');
   }
 
   const movements = await InventoryMovement.find({ product: product._id }).sort({ createdAt: -1 });

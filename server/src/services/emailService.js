@@ -2,7 +2,7 @@ const ApiError = require('../utils/ApiError');
 
 function requireEnv(name) {
   const value = process.env[name];
-  if (!value) throw new ApiError(500, `Missing required env var: ${name}`);
+  if (!value) throw new ApiError(500, `Falta la variable de entorno requerida: ${name}`);
   return value;
 }
 

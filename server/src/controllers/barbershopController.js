@@ -7,7 +7,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const getBySlug = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findOne({ slug: req.params.slug, active: true });
   if (!barbershop) {
-    throw new ApiError(404, 'Barbershop not found');
+    throw new ApiError(404, 'Barbería no encontrada');
   }
   res.json(barbershop);
 });
@@ -15,7 +15,7 @@ const getBySlug = asyncHandler(async (req, res) => {
 const getMe = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findById(req.user.barbershop);
   if (!barbershop) {
-    throw new ApiError(404, 'Barbershop not found');
+    throw new ApiError(404, 'Barbería no encontrada');
   }
   res.json(barbershop);
 });
@@ -35,7 +35,7 @@ const updateMe = asyncHandler(async (req, res) => {
     runValidators: true
   });
   if (!barbershop) {
-    throw new ApiError(404, 'Barbershop not found');
+    throw new ApiError(404, 'Barbería no encontrada');
   }
   res.json(barbershop);
 });
@@ -54,7 +54,7 @@ function restoreSubscriptionStatus(barbershop, now) {
 const requestDeletion = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findById(req.user.barbershop);
   if (!barbershop) {
-    throw new ApiError(404, 'Barbershop not found');
+    throw new ApiError(404, 'Barbería no encontrada');
   }
 
   const now = new Date();
@@ -74,10 +74,10 @@ const requestDeletion = asyncHandler(async (req, res) => {
 const cancelDeletion = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findById(req.user.barbershop);
   if (!barbershop) {
-    throw new ApiError(404, 'Barbershop not found');
+    throw new ApiError(404, 'Barbería no encontrada');
   }
   if (!barbershop.deletionRequestedAt) {
-    throw new ApiError(409, 'No deletion is pending for this barbershop');
+    throw new ApiError(409, 'No hay ninguna eliminación pendiente para esta barbería');
   }
 
   const now = new Date();
@@ -92,10 +92,10 @@ const cancelDeletion = asyncHandler(async (req, res) => {
 const uploadLogo = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findById(req.user.barbershop);
   if (!barbershop) {
-    throw new ApiError(404, 'Barbershop not found');
+    throw new ApiError(404, 'Barbería no encontrada');
   }
   if (!req.file) {
-    throw new ApiError(400, 'No file uploaded');
+    throw new ApiError(400, 'No se subió ningún archivo');
   }
 
   if (barbershop.logoUrl && barbershop.logoUrl.startsWith('/uploads/logos/')) {

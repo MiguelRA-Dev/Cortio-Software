@@ -12,22 +12,22 @@ const create = asyncHandler(async (req, res) => {
   const { barberId, customerId, appointmentId, items, paymentMethod } = req.body;
 
   if (!Array.isArray(items) || items.length === 0) {
-    throw new ApiError(400, 'items must be a non-empty array');
+    throw new ApiError(400, 'items debe ser un arreglo no vacío');
   }
   if (!PAYMENT_METHODS.includes(paymentMethod)) {
-    throw new ApiError(400, `paymentMethod must be one of: ${PAYMENT_METHODS.join(', ')}`);
+    throw new ApiError(400, `paymentMethod debe ser uno de: ${PAYMENT_METHODS.join(', ')}`);
   }
 
   let linkedAppointment = null;
   if (appointmentId) {
     linkedAppointment = await Appointment.findOne({ _id: appointmentId, barbershop: req.user.barbershop });
-    if (!linkedAppointment) throw new ApiError(404, 'Appointment not found');
+    if (!linkedAppointment) throw new ApiError(404, 'Cita no encontrada');
     if (req.user.role === 'barber' && linkedAppointment.barber.toString() !== req.user._id.toString()) {
-      throw new ApiError(403, 'You can only link your own appointments');
+      throw new ApiError(403, 'Solo puedes vincular tus propias citas');
     }
     const existingSale = await Sale.findOne({ appointment: linkedAppointment._id });
     if (existingSale) {
-      throw new ApiError(409, 'This appointment has already been sold');
+      throw new ApiError(409, 'Esta cita ya fue vendida');
     }
   }
 
@@ -37,15 +37,15 @@ const create = asyncHandler(async (req, res) => {
   for (const rawItem of items) {
     const { itemType, itemId, quantity } = rawItem;
     if (!['Service', 'Product'].includes(itemType)) {
-      throw new ApiError(400, "itemType must be 'Service' or 'Product'");
+      throw new ApiError(400, "itemType debe ser 'Service' o 'Product'");
     }
     if (!quantity || quantity < 1) {
-      throw new ApiError(400, 'quantity must be a positive number for every item');
+      throw new ApiError(400, 'quantity debe ser un número positivo para cada ítem');
     }
 
     if (itemType === 'Service') {
       const service = await Service.findOne({ _id: itemId, barbershop: req.user.barbershop, active: true });
-      if (!service) throw new ApiError(404, `Service not found: ${itemId}`);
+      if (!service) throw new ApiError(404, `Servicio no encontrado: ${itemId}`);
 
       resolvedItems.push({
         itemType,
@@ -57,9 +57,9 @@ const create = asyncHandler(async (req, res) => {
       });
     } else {
       const product = await Product.findOne({ _id: itemId, barbershop: req.user.barbershop, active: true });
-      if (!product) throw new ApiError(404, `Product not found: ${itemId}`);
+      if (!product) throw new ApiError(404, `Producto no encontrado: ${itemId}`);
       if (product.stockQuantity < quantity) {
-        throw new ApiError(409, `Insufficient stock for ${product.name}: only ${product.stockQuantity} available`);
+        throw new ApiError(409, `Stock insuficiente de ${product.name}: solo hay ${product.stockQuantity} disponibles`);
       }
 
       resolvedItems.push({
@@ -142,7 +142,7 @@ const getById = asyncHandler(async (req, res) => {
     .populate('barber', 'name')
     .populate({ path: 'appointment', select: 'customer startTime', populate: { path: 'customer', select: 'name' } });
   if (!sale) {
-    throw new ApiError(404, 'Sale not found');
+    throw new ApiError(404, 'Venta no encontrada');
   }
   res.json(sale);
 });

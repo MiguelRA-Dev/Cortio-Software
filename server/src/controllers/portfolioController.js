@@ -7,7 +7,7 @@ const asyncHandler = require('../utils/asyncHandler');
 
 const create = asyncHandler(async (req, res) => {
   if (!req.file) {
-    throw new ApiError(400, 'No file uploaded');
+    throw new ApiError(400, 'No se subió ningún archivo');
   }
 
   const photo = await PortfolioPhoto.create({
@@ -42,7 +42,7 @@ const listByBarber = asyncHandler(async (req, res) => {
 const listPublic = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findOne({ slug: req.params.slug, active: true });
   if (!barbershop) {
-    throw new ApiError(404, 'Barbershop not found');
+    throw new ApiError(404, 'Barbería no encontrada');
   }
 
   const filter = { barbershop: barbershop._id };
@@ -58,13 +58,13 @@ const listPublic = asyncHandler(async (req, res) => {
 const remove = asyncHandler(async (req, res) => {
   const photo = await PortfolioPhoto.findOne({ _id: req.params.id, barbershop: req.user.barbershop });
   if (!photo) {
-    throw new ApiError(404, 'Photo not found');
+    throw new ApiError(404, 'Foto no encontrada');
   }
 
   const isOwner = req.user.role === 'owner';
   const isPhotoOwner = req.user.role === 'barber' && photo.barber.toString() === req.user._id.toString();
   if (!isOwner && !isPhotoOwner) {
-    throw new ApiError(403, 'You do not have permission to delete this photo');
+    throw new ApiError(403, 'No tienes permiso para eliminar esta foto');
   }
 
   const filePath = path.join(__dirname, '..', '..', photo.imageUrl);

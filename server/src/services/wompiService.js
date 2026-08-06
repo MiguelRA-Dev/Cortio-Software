@@ -5,7 +5,7 @@ const BASE_URL = process.env.WOMPI_ENV === 'production' ? 'https://production.wo
 
 function requireEnv(name) {
   const value = process.env[name];
-  if (!value) throw new ApiError(500, `Missing required env var: ${name}`);
+  if (!value) throw new ApiError(500, `Falta la variable de entorno requerida: ${name}`);
   return value;
 }
 
@@ -23,8 +23,8 @@ async function wompiFetch(path, { method = 'GET', body, useSecretKey = false } =
 
   const json = await res.json().catch(() => null);
   if (!res.ok) {
-    const message = json?.error?.reason || json?.error?.messages || `Wompi request failed (${res.status})`;
-    throw new ApiError(502, `Wompi error: ${JSON.stringify(message)}`);
+    const message = json?.error?.reason || json?.error?.messages || `La solicitud a Wompi falló (${res.status})`;
+    throw new ApiError(502, `Error de Wompi: ${JSON.stringify(message)}`);
   }
   return json;
 }

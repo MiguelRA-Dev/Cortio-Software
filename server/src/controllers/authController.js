@@ -15,7 +15,7 @@ const { sendVerificationEmail, sendPasswordResetEmail } = require('../services/e
 let googleClient;
 function getGoogleClient() {
   if (!process.env.GOOGLE_CLIENT_ID) {
-    throw new ApiError(500, 'Google sign-in is not configured (missing GOOGLE_CLIENT_ID)');
+    throw new ApiError(500, 'El inicio de sesión con Google no está configurado (falta GOOGLE_CLIENT_ID)');
   }
   if (!googleClient) {
     googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -74,7 +74,7 @@ const registerBarbershop = asyncHandler(async (req, res) => {
   } = req.body;
 
   if (!ownerName || !barbershopName || !slug) {
-    throw new ApiError(400, 'ownerName, barbershopName and slug are required');
+    throw new ApiError(400, 'ownerName, barbershopName y slug son requeridos');
   }
 
   // Two ways to prove ownership of the email: a password pair, or a verified Google
@@ -93,10 +93,10 @@ const registerBarbershop = asyncHandler(async (req, res) => {
       });
       payload = ticket.getPayload();
     } catch (err) {
-      throw new ApiError(401, 'Invalid Google credential');
+      throw new ApiError(401, 'El credential de Google es inválido');
     }
     if (!payload?.email || !payload.email_verified) {
-      throw new ApiError(401, 'Your Google account email is not verified');
+      throw new ApiError(401, 'El correo de tu cuenta de Google no está verificado');
     }
     email = payload.email.toLowerCase();
     emailVerified = true;
@@ -105,10 +105,10 @@ const registerBarbershop = asyncHandler(async (req, res) => {
     passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), SALT_ROUNDS);
   } else {
     if (!rawEmail || !password) {
-      throw new ApiError(400, 'email and password are required');
+      throw new ApiError(400, 'email y password son requeridos');
     }
     if (confirmPassword !== undefined && password !== confirmPassword) {
-      throw new ApiError(400, 'password and confirmPassword do not match');
+      throw new ApiError(400, 'password y confirmPassword no coinciden');
     }
     email = rawEmail.toLowerCase();
     passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -116,16 +116,16 @@ const registerBarbershop = asyncHandler(async (req, res) => {
 
   const normalizedSlug = slug.toLowerCase().trim().replace(/\s+/g, '-');
   if (!/^[a-z0-9-]+$/.test(normalizedSlug)) {
-    throw new ApiError(400, 'slug may only contain lowercase letters, numbers and hyphens');
+    throw new ApiError(400, 'El slug solo puede tener minúsculas, números y guiones');
   }
 
   const existingEmail = await User.findOne({ email });
   if (existingEmail) {
-    throw new ApiError(409, 'Email already in use');
+    throw new ApiError(409, 'Este correo ya está en uso');
   }
   const existingSlug = await Barbershop.findOne({ slug: normalizedSlug });
   if (existingSlug) {
-    throw new ApiError(409, 'slug already in use');
+    throw new ApiError(409, 'Este slug ya está en uso');
   }
 
   const owner = await User.create({ name: ownerName, email, passwordHash, phone, role: 'owner', emailVerified });
@@ -182,15 +182,15 @@ const registerBarber = asyncHandler(async (req, res) => {
   const { name, email, password, phone, paymentScheme, commissionRate, baseSalary, schedule } = req.body;
 
   if (!name || !email || !password || !paymentScheme) {
-    throw new ApiError(400, 'name, email, password and paymentScheme are required');
+    throw new ApiError(400, 'name, email, password y paymentScheme son requeridos');
   }
   if (!['commission', 'fixed', 'mixed'].includes(paymentScheme)) {
-    throw new ApiError(400, 'paymentScheme must be commission, fixed or mixed');
+    throw new ApiError(400, 'paymentScheme debe ser commission, fixed o mixed');
   }
 
   const existingEmail = await User.findOne({ email: email.toLowerCase() });
   if (existingEmail) {
-    throw new ApiError(409, 'Email already in use');
+    throw new ApiError(409, 'Este correo ya está en uso');
   }
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -214,12 +214,12 @@ const registerCustomer = asyncHandler(async (req, res) => {
   const { name, email, password, phone } = req.body;
 
   if (!name || !email || !password) {
-    throw new ApiError(400, 'name, email and password are required');
+    throw new ApiError(400, 'name, email y password son requeridos');
   }
 
   const existingEmail = await User.findOne({ email: email.toLowerCase() });
   if (existingEmail) {
-    throw new ApiError(409, 'Email already in use');
+    throw new ApiError(409, 'Este correo ya está en uso');
   }
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -232,17 +232,17 @@ const registerCustomer = asyncHandler(async (req, res) => {
 const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
-    throw new ApiError(400, 'email and password are required');
+    throw new ApiError(400, 'email y password son requeridos');
   }
 
   const user = await User.findOne({ email: email.toLowerCase() });
   if (!user || !user.active) {
-    throw new ApiError(401, 'Invalid credentials');
+    throw new ApiError(401, 'Credenciales inválidas');
   }
 
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
-    throw new ApiError(401, 'Invalid credentials');
+    throw new ApiError(401, 'Credenciales inválidas');
   }
 
   const token = signToken(user);
@@ -252,7 +252,7 @@ const login = asyncHandler(async (req, res) => {
 const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
   if (!email) {
-    throw new ApiError(400, 'email is required');
+    throw new ApiError(400, 'email es requerido');
   }
 
   const user = await User.findOne({ email: email.toLowerCase(), active: true });
@@ -282,13 +282,13 @@ const forgotPassword = asyncHandler(async (req, res) => {
 const resetPassword = asyncHandler(async (req, res) => {
   const { token, password, confirmPassword } = req.body;
   if (!token || !password) {
-    throw new ApiError(400, 'token and password are required');
+    throw new ApiError(400, 'token y password son requeridos');
   }
   if (confirmPassword !== undefined && password !== confirmPassword) {
-    throw new ApiError(400, 'password and confirmPassword do not match');
+    throw new ApiError(400, 'password y confirmPassword no coinciden');
   }
   if (password.length < 6) {
-    throw new ApiError(400, 'password must be at least 6 characters long');
+    throw new ApiError(400, 'password debe tener al menos 6 caracteres');
   }
 
   const user = await User.findOne({
@@ -296,7 +296,7 @@ const resetPassword = asyncHandler(async (req, res) => {
     passwordResetExpires: { $gt: new Date() }
   });
   if (!user) {
-    throw new ApiError(400, 'This password reset link is invalid or has expired');
+    throw new ApiError(400, 'Este link de recuperación es inválido o ya expiró');
   }
 
   user.passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -314,7 +314,7 @@ const resetPassword = asyncHandler(async (req, res) => {
 const googleLogin = asyncHandler(async (req, res) => {
   const { credential } = req.body;
   if (!credential) {
-    throw new ApiError(400, 'credential is required');
+    throw new ApiError(400, 'credential es requerido');
   }
 
   let payload;
@@ -325,11 +325,11 @@ const googleLogin = asyncHandler(async (req, res) => {
     });
     payload = ticket.getPayload();
   } catch (err) {
-    throw new ApiError(401, 'Invalid Google credential');
+    throw new ApiError(401, 'El credential de Google es inválido');
   }
 
   if (!payload?.email || !payload.email_verified) {
-    throw new ApiError(401, 'Your Google account email is not verified');
+    throw new ApiError(401, 'El correo de tu cuenta de Google no está verificado');
   }
 
   const user = await User.findOne({ email: payload.email.toLowerCase() });
@@ -350,7 +350,7 @@ const updateMe = asyncHandler(async (req, res) => {
   const updates = {};
 
   if (name !== undefined) {
-    if (!name.trim()) throw new ApiError(400, 'name cannot be empty');
+    if (!name.trim()) throw new ApiError(400, 'name no puede estar vacío');
     updates.name = name.trim();
   }
   if (phone !== undefined) {
@@ -358,10 +358,10 @@ const updateMe = asyncHandler(async (req, res) => {
   }
   if (email !== undefined) {
     const normalizedEmail = email.toLowerCase().trim();
-    if (!normalizedEmail) throw new ApiError(400, 'email cannot be empty');
+    if (!normalizedEmail) throw new ApiError(400, 'email no puede estar vacío');
     if (normalizedEmail !== req.user.email) {
       const existing = await User.findOne({ email: normalizedEmail });
-      if (existing) throw new ApiError(409, 'Email already in use');
+      if (existing) throw new ApiError(409, 'Este correo ya está en uso');
       // A changed email is unverified until it's confirmed again.
       updates.emailVerified = false;
     }
@@ -375,7 +375,7 @@ const updateMe = asyncHandler(async (req, res) => {
 const verifyEmail = asyncHandler(async (req, res) => {
   const { token } = req.body;
   if (!token) {
-    throw new ApiError(400, 'token is required');
+    throw new ApiError(400, 'token es requerido');
   }
 
   const user = await User.findOne({
@@ -383,7 +383,7 @@ const verifyEmail = asyncHandler(async (req, res) => {
     emailVerificationExpires: { $gt: new Date() }
   });
   if (!user) {
-    throw new ApiError(400, 'This verification link is invalid or has expired');
+    throw new ApiError(400, 'Este link de verificación es inválido o ya expiró');
   }
 
   user.emailVerified = true;
@@ -396,7 +396,7 @@ const verifyEmail = asyncHandler(async (req, res) => {
 
 const resendVerification = asyncHandler(async (req, res) => {
   if (req.user.emailVerified) {
-    throw new ApiError(409, 'This email is already verified');
+    throw new ApiError(409, 'Este correo ya está verificado');
   }
   await issueVerificationEmail(req.user);
   res.json({ sent: true });

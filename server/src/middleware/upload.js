@@ -12,7 +12,7 @@ const ALLOWED_MIME_TYPES = {
 
 function fileFilter(req, file, cb) {
   if (!ALLOWED_MIME_TYPES[file.mimetype]) {
-    cb(new ApiError(400, 'Only JPG, PNG or WEBP images are allowed'));
+    cb(new ApiError(400, 'Solo se permiten imágenes JPG, PNG o WEBP'));
     return;
   }
   cb(null, true);

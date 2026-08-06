@@ -6,7 +6,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const create = asyncHandler(async (req, res) => {
   const { name, description, durationMinutes, price, category } = req.body;
   if (!name || !durationMinutes || price === undefined) {
-    throw new ApiError(400, 'name, durationMinutes and price are required');
+    throw new ApiError(400, 'name, durationMinutes y price son requeridos');
   }
 
   const service = await Service.create({
@@ -28,7 +28,7 @@ const listMine = asyncHandler(async (req, res) => {
 const listPublic = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findOne({ slug: req.params.slug, active: true });
   if (!barbershop) {
-    throw new ApiError(404, 'Barbershop not found');
+    throw new ApiError(404, 'Barbería no encontrada');
   }
   const services = await Service.find({ barbershop: barbershop._id, active: true });
   res.json(services);
@@ -39,7 +39,7 @@ const ALLOWED_UPDATE_FIELDS = ['name', 'description', 'durationMinutes', 'price'
 const update = asyncHandler(async (req, res) => {
   const service = await Service.findOne({ _id: req.params.id, barbershop: req.user.barbershop });
   if (!service) {
-    throw new ApiError(404, 'Service not found');
+    throw new ApiError(404, 'Servicio no encontrado');
   }
 
   for (const field of ALLOWED_UPDATE_FIELDS) {
@@ -54,7 +54,7 @@ const update = asyncHandler(async (req, res) => {
 const remove = asyncHandler(async (req, res) => {
   const service = await Service.findOne({ _id: req.params.id, barbershop: req.user.barbershop });
   if (!service) {
-    throw new ApiError(404, 'Service not found');
+    throw new ApiError(404, 'Servicio no encontrado');
   }
   service.active = false;
   await service.save();

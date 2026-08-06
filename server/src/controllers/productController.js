@@ -5,7 +5,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const create = asyncHandler(async (req, res) => {
   const { name, sku, stockQuantity, unitCost, salePrice, lowStockThreshold } = req.body;
   if (!name) {
-    throw new ApiError(400, 'name is required');
+    throw new ApiError(400, 'name es requerido');
   }
 
   const product = await Product.create({
@@ -44,7 +44,7 @@ const ALLOWED_UPDATE_FIELDS = ['name', 'sku', 'unitCost', 'salePrice', 'lowStock
 const update = asyncHandler(async (req, res) => {
   const product = await Product.findOne({ _id: req.params.id, barbershop: req.user.barbershop });
   if (!product) {
-    throw new ApiError(404, 'Product not found');
+    throw new ApiError(404, 'Producto no encontrado');
   }
 
   for (const field of ALLOWED_UPDATE_FIELDS) {

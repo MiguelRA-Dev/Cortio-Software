@@ -20,7 +20,7 @@ const listMyTeam = asyncHandler(async (req, res) => {
 const listPublicBarbers = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findOne({ slug: req.params.slug, active: true });
   if (!barbershop) {
-    throw new ApiError(404, 'Barbershop not found');
+    throw new ApiError(404, 'Barbería no encontrada');
   }
   const barbers = await User.find({ barbershop: barbershop._id, role: 'barber', active: true }).select(PUBLIC_FIELDS);
 
@@ -55,7 +55,7 @@ const ALLOWED_UPDATE_FIELDS = ['name', 'phone', 'avatarUrl', 'paymentScheme', 'c
 const updateBarber = asyncHandler(async (req, res) => {
   const barber = await User.findOne({ _id: req.params.id, barbershop: req.user.barbershop, role: 'barber' });
   if (!barber) {
-    throw new ApiError(404, 'Barber not found');
+    throw new ApiError(404, 'Barbero no encontrado');
   }
 
   for (const field of ALLOWED_UPDATE_FIELDS) {
@@ -72,15 +72,15 @@ const updateBarber = asyncHandler(async (req, res) => {
 
 const uploadAvatar = asyncHandler(async (req, res) => {
   if (req.user.role === 'barber' && req.params.id !== req.user._id.toString()) {
-    throw new ApiError(403, 'You can only upload your own photo');
+    throw new ApiError(403, 'Solo puedes subir tu propia foto');
   }
 
   const barber = await User.findOne({ _id: req.params.id, barbershop: req.user.barbershop, role: 'barber' });
   if (!barber) {
-    throw new ApiError(404, 'Barber not found');
+    throw new ApiError(404, 'Barbero no encontrado');
   }
   if (!req.file) {
-    throw new ApiError(400, 'No file uploaded');
+    throw new ApiError(400, 'No se subió ningún archivo');
   }
 
   if (barber.avatarUrl && barber.avatarUrl.startsWith('/uploads/avatars/')) {

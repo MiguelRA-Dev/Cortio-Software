@@ -24,11 +24,11 @@ const requireActiveSubscription = asyncHandler(async (req, res, next) => {
     'subscriptionStatus trialEndsAt currentPeriodEnd'
   );
   if (!barbershop) {
-    throw new ApiError(404, 'Barbershop not found');
+    throw new ApiError(404, 'Barbería no encontrada');
   }
 
   if (isBlocked(barbershop, new Date())) {
-    throw new ApiError(402, 'Your subscription is not active. Update your payment method to continue.');
+    throw new ApiError(402, 'Tu suscripción no está activa. Actualiza tu método de pago para continuar.');
   }
 
   next();
