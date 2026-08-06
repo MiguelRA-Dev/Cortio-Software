@@ -38,7 +38,21 @@ app.use(
   })
 );
 
-app.use(helmet());
+// Helmet's default CSP only allows same-origin scripts/frames — too strict for Google
+// Identity Services, which injects its own <script> and renders the sign-in button
+// inside a Google-hosted iframe.
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        'script-src': ["'self'", 'https://accounts.google.com'],
+        'frame-src': ["'self'", 'https://accounts.google.com'],
+        'connect-src': ["'self'", 'https://accounts.google.com'],
+      },
+    },
+  })
+);
 app.use(morgan('dev'));
 app.use(express.json());
 
