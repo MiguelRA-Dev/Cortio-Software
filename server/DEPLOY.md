@@ -147,14 +147,50 @@ npm install --omit=dev
 
 ## 5. Desplegar con Azure CLI (zip deploy)
 
-Desde la carpeta `server/`:
+**Si estás en Windows y no tienes `zip` de Linux instalado** (Git Bash no lo trae por
+defecto), no uses `Compress-Archive` de PowerShell a secas — genera las rutas dentro del
+zip con `\` en vez de `/`, y el servidor Linux de Azure falla al extraerlo (error
+`rsync: failed to stat ... Invalid argument (22)` en cientos de archivos). Usa este
+script de PowerShell en su lugar, que arma el zip con rutas `/` correctas y excluye
+`uploads/` y los `.env`:
+
+```powershell
+$root = "C:\ruta\a\Cortio Software Desarrollo"   # ajusta a tu ruta real
+$serverPath = Join-Path $root "server"
+$staging = Join-Path $root "deploy-staging"
+if (Test-Path $staging) { Remove-Item -Path $staging -Recurse -Force -Confirm:$false }
+New-Item -ItemType Directory -Path $staging | Out-Null
+
+$excludeDirs = @('uploads', '.git', 'node_modules')
+Get-ChildItem -Path $serverPath -Force | Where-Object { $_.Name -notin $excludeDirs -and $_.Name -notlike '.env*' } | ForEach-Object {
+    Copy-Item -Path $_.FullName -Destination (Join-Path $staging $_.Name) -Recurse -Force
+}
+Copy-Item -Path (Join-Path $serverPath 'node_modules') -Destination (Join-Path $staging 'node_modules') -Recurse -Force
+
+$zipPath = Join-Path $root "cortio-deploy.zip"
+if (Test-Path $zipPath) { Remove-Item -Path $zipPath -Force -Confirm:$false }
+Add-Type -AssemblyName System.IO.Compression
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$zip = [System.IO.Compression.ZipFile]::Open($zipPath, [System.IO.Compression.ZipArchiveMode]::Create)
+Get-ChildItem -Path $staging -Recurse -File | ForEach-Object {
+    $relativePath = $_.FullName.Substring($staging.Length + 1).Replace('\', '/')
+    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $_.FullName, $relativePath, [System.IO.Compression.CompressionLevel]::Optimal) | Out-Null
+}
+$zip.Dispose()
+Remove-Item -Path $staging -Recurse -Force -Confirm:$false
+```
+
+**Si estás en macOS/Linux** (o Git Bash con `zip` instalado), es más simple:
 
 ```bash
-# Empaqueta todo lo necesario (código + node_modules + public/) en un zip
 cd "server"
 zip -r ../cortio-deploy.zip . -x "*.git*" -x "uploads/*"
+```
 
-# Sube el zip a tu App Service (ajusta el nombre si usaste otro)
+Después, en cualquiera de los dos casos, sube el zip a tu App Service (ajusta el nombre
+de recurso/grupo si usaste otros):
+
+```bash
 az webapp deploy \
   --resource-group cortio-rg \
   --name cortio \
