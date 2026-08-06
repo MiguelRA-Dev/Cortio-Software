@@ -51,6 +51,10 @@ app.use(
         'connect-src': ["'self'", 'https://accounts.google.com'],
       },
     },
+    // Helmet's default 'same-origin' severs window.opener on any popup this page opens
+    // (e.g. Google's Sign-In popup), breaking the postMessage handshake it relies on to
+    // report the result back.
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
   })
 );
 app.use(morgan('dev'));
