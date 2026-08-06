@@ -1,9 +1,13 @@
 node_modules/
-.env
-.env.local
+.env*
+!*.example
 dist/
 build/
 *.log
 .DS_Store
 server/uploads/*
 !server/uploads/avatars/.gitkeep
+
+# Built frontend, copied into server/public/ at deploy time (see DEPLOY.md) — never
+# committed, always generated fresh from client/ during the build/deploy step.
+server/public/
