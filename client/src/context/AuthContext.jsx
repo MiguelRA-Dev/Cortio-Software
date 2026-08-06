@@ -49,6 +49,13 @@ export function AuthProvider({ children }) {
     return data.user
   }
 
+  async function completePasswordReset({ token: resetToken, password, confirmPassword }) {
+    const { data } = await apiClient.post('/auth/reset-password', { token: resetToken, password, confirmPassword })
+    localStorage.setItem('token', data.token)
+    setUser(data.user)
+    return data.user
+  }
+
   function logout() {
     localStorage.removeItem('token')
     setUser(null)
@@ -68,6 +75,7 @@ export function AuthProvider({ children }) {
         loginWithGoogle,
         registerBarbershop,
         registerCustomer,
+        completePasswordReset,
         logout,
         updateUser,
       }}

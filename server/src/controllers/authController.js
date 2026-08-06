@@ -7,7 +7,7 @@ const Service = require('../models/Service');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { signToken } = require('../utils/jwt');
-const { sendVerificationEmail } = require('../services/emailService');
+const { sendVerificationEmail, sendPasswordResetEmail } = require('../services/emailService');
 
 // Lazy singleton: constructed on first use rather than at module load, so a missing
 // GOOGLE_CLIENT_ID surfaces as a clean 500 from the route instead of crashing the
@@ -25,12 +25,15 @@ function getGoogleClient() {
 
 const SALT_ROUNDS = 10;
 const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const PASSWORD_RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 
 function sanitizeUser(user) {
   const obj = user.toObject();
   delete obj.passwordHash;
   delete obj.emailVerificationToken;
   delete obj.emailVerificationExpires;
+  delete obj.passwordResetToken;
+  delete obj.passwordResetExpires;
   return obj;
 }
 
@@ -246,6 +249,65 @@ const login = asyncHandler(async (req, res) => {
   res.json({ token, user: sanitizeUser(user) });
 });
 
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    throw new ApiError(400, 'email is required');
+  }
+
+  const user = await User.findOne({ email: email.toLowerCase(), active: true });
+  // Always answer the same way whether or not the email exists — otherwise this
+  // endpoint becomes a way to check which emails are registered in Cortio.
+  if (user) {
+    const token = crypto.randomBytes(32).toString('hex');
+    user.passwordResetToken = token;
+    user.passwordResetExpires = new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MS);
+    await user.save();
+
+    try {
+      const appUrl = process.env.APP_URL || '';
+      await sendPasswordResetEmail({
+        to: user.email,
+        name: user.name,
+        resetUrl: `${appUrl}/reset-password/${token}`
+      });
+    } catch (err) {
+      console.error('[auth] Failed to send password reset email:', err.message);
+    }
+  }
+
+  res.json({ sent: true });
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+  const { token, password, confirmPassword } = req.body;
+  if (!token || !password) {
+    throw new ApiError(400, 'token and password are required');
+  }
+  if (confirmPassword !== undefined && password !== confirmPassword) {
+    throw new ApiError(400, 'password and confirmPassword do not match');
+  }
+  if (password.length < 6) {
+    throw new ApiError(400, 'password must be at least 6 characters long');
+  }
+
+  const user = await User.findOne({
+    passwordResetToken: token,
+    passwordResetExpires: { $gt: new Date() }
+  });
+  if (!user) {
+    throw new ApiError(400, 'This password reset link is invalid or has expired');
+  }
+
+  user.passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+  user.passwordResetToken = undefined;
+  user.passwordResetExpires = undefined;
+  await user.save();
+
+  const authToken = signToken(user);
+  res.json({ token: authToken, user: sanitizeUser(user) });
+});
+
 // Google only authenticates an existing account here — it doesn't create one. Letting
 // a Google credential silently create a barbershop owner would skip the registration
 // wizard (shop name, slug, address) with no way to collect that data mid-flow.
@@ -345,6 +407,8 @@ module.exports = {
   registerBarber,
   registerCustomer,
   login,
+  forgotPassword,
+  resetPassword,
   googleLogin,
   me,
   updateMe,

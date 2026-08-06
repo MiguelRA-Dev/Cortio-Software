@@ -7,6 +7,8 @@ const router = express.Router();
 router.post('/register-barbershop', authController.registerBarbershop);
 router.post('/register-customer', authController.registerCustomer);
 router.post('/login', authController.login);
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/reset-password', authController.resetPassword);
 router.post('/google', authController.googleLogin);
 router.get('/me', requireAuth, authController.me);
 router.patch('/me', requireAuth, authController.updateMe);

@@ -50,4 +50,25 @@ async function sendVerificationEmail({ to, name, verifyUrl }) {
   });
 }
 
-module.exports = { sendVerificationEmail };
+async function sendPasswordResetEmail({ to, name, resetUrl }) {
+  return sendEmail({
+    to,
+    subject: 'Restablece tu contraseña en Cortio',
+    html: `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2>Hola ${name || ''},</h2>
+        <p>Recibimos una solicitud para restablecer tu contraseña en Cortio. Si fuiste tú:</p>
+        <p>
+          <a href="${resetUrl}" style="display:inline-block;background:#111;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;">
+            Restablecer contraseña
+          </a>
+        </p>
+        <p>O copia y pega este link en tu navegador:</p>
+        <p style="word-break: break-all;">${resetUrl}</p>
+        <p>Este link expira en 1 hora. Si no fuiste tú, puedes ignorar este correo — tu contraseña seguirá siendo la misma.</p>
+      </div>
+    `
+  });
+}
+
+module.exports = { sendVerificationEmail, sendPasswordResetEmail };

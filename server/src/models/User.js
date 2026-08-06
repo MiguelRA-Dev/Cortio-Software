@@ -26,6 +26,9 @@ const userSchema = new mongoose.Schema({
   emailVerificationToken: { type: String },
   emailVerificationExpires: { type: Date },
 
+  passwordResetToken: { type: String },
+  passwordResetExpires: { type: Date },
+
   barbershop: { type: mongoose.Schema.Types.ObjectId, ref: 'Barbershop' },
 
   paymentScheme: { type: String, enum: ['commission', 'fixed', 'mixed'] },

@@ -14,3 +14,8 @@ export async function resendVerification() {
   const { data } = await apiClient.post('/auth/resend-verification')
   return data
 }
+
+export async function forgotPassword(email) {
+  const { data } = await apiClient.post('/auth/forgot-password', { email })
+  return data
+}

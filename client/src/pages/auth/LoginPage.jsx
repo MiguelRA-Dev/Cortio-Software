@@ -71,17 +71,25 @@ function LoginPage() {
           autoComplete="email"
           required
         />
-        <Input
-          id="password"
-          name="password"
-          type="password"
-          label="Contraseña"
-          placeholder="••••••••"
-          value={form.password}
-          onChange={handleChange}
-          autoComplete="current-password"
-          required
-        />
+        <div>
+          <Input
+            id="password"
+            name="password"
+            type="password"
+            label="Contraseña"
+            placeholder="••••••••"
+            value={form.password}
+            onChange={handleChange}
+            autoComplete="current-password"
+            required
+          />
+          <Link
+            to="/forgot-password"
+            className="mt-1.5 inline-block text-xs font-medium text-muted hover:text-ink"
+          >
+            ¿Olvidaste tu contraseña?
+          </Link>
+        </div>
 
         {error && (
           <p className="rounded-lg border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
