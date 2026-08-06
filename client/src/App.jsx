@@ -4,6 +4,8 @@ import RegisterPage from './pages/auth/RegisterPage'
 import VerifyEmailPage from './pages/auth/VerifyEmailPage'
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage'
 import ResetPasswordPage from './pages/auth/ResetPasswordPage'
+import TermsPage from './pages/legal/TermsPage'
+import PrivacyPage from './pages/legal/PrivacyPage'
 import AppLayout from './layouts/AppLayout'
 import DashboardPage from './pages/owner/DashboardPage'
 import AppointmentsPage from './pages/owner/AppointmentsPage'
@@ -29,6 +31,8 @@ function App() {
       <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/b/:slug" element={<PublicBookingPage />} />
 
       <Route

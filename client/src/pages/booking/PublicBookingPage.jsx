@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { MapPin, Phone, Clock, ArrowLeft, CheckCircle2, UserRound, Star, CalendarClock } from 'lucide-react'
 import Card from '../../components/ui/Card'
@@ -74,6 +74,8 @@ function ReviewForm({ appointmentId, onDone }) {
 }
 
 function CustomerAuthForm({ idPrefix, mode, setMode, contact, setContact, onSubmit, submitting, error, submitLabel }) {
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
+
   return (
     <div>
       <div className="flex gap-1 rounded-lg border border-border bg-surface-2 p-1">
@@ -137,15 +139,36 @@ function CustomerAuthForm({ idPrefix, mode, setMode, contact, setContact, onSubm
           required
         />
         {mode === 'register' && (
-          <p className="-mt-2 text-xs text-muted">
-            Con esto creamos tu cuenta para que puedas ver y gestionar tus citas la próxima vez sin volver a
-            registrarte.
-          </p>
+          <>
+            <p className="-mt-2 text-xs text-muted">
+              Con esto creamos tu cuenta para que puedas ver y gestionar tus citas la próxima vez sin volver a
+              registrarte.
+            </p>
+            <label className="-mt-1 flex items-start gap-2.5 text-xs text-muted">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-border accent-ink"
+              />
+              <span>
+                Acepto los{' '}
+                <Link to="/terms" target="_blank" className="font-medium text-ink underline hover:text-accent">
+                  Términos y condiciones
+                </Link>{' '}
+                y la{' '}
+                <Link to="/privacy" target="_blank" className="font-medium text-ink underline hover:text-accent">
+                  Política de privacidad
+                </Link>{' '}
+                de Cortio.
+              </span>
+            </label>
+          </>
         )}
         {error && (
           <p className="rounded-lg border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-sm text-danger">{error}</p>
         )}
-        <Button type="submit" disabled={submitting} className="w-full">
+        <Button type="submit" disabled={submitting || (mode === 'register' && !acceptedTerms)} className="w-full">
           {submitting ? 'Procesando...' : submitLabel}
         </Button>
       </form>

@@ -74,6 +74,7 @@ function RegisterPage() {
   const [slugEdited, setSlugEdited] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
 
   if (!sessionLoading && isAuthenticated) {
     return <Navigate to="/app" replace />
@@ -342,6 +343,28 @@ function RegisterPage() {
           </div>
         )}
 
+        {isLastStep && (
+          <label className="flex items-start gap-2.5 text-sm text-muted">
+            <input
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-ink"
+            />
+            <span>
+              Acepto los{' '}
+              <Link to="/terms" target="_blank" className="font-medium text-ink underline hover:text-accent">
+                Términos y condiciones
+              </Link>{' '}
+              y la{' '}
+              <Link to="/privacy" target="_blank" className="font-medium text-ink underline hover:text-accent">
+                Política de privacidad
+              </Link>{' '}
+              de Cortio.
+            </span>
+          </label>
+        )}
+
         {error && (
           <p className="rounded-lg border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-sm text-danger">{error}</p>
         )}
@@ -352,7 +375,7 @@ function RegisterPage() {
               Atrás
             </Button>
           )}
-          <Button type="submit" disabled={loading} className="flex-1">
+          <Button type="submit" disabled={loading || (isLastStep && !acceptedTerms)} className="flex-1">
             {isLastStep ? (loading ? 'Creando cuenta...' : 'Registrar mi barbería') : 'Continuar'}
           </Button>
         </div>
