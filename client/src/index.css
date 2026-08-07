@@ -73,6 +73,94 @@
   }
 }
 
+/* Styles the auto-generated markup the Usercentrics privacy-policy script injects
+   into .uc-privacy-policy — that HTML arrives with no classes of its own, so it's
+   matched by tag to blend into the rest of the page. */
+.uc-privacy-policy h1,
+.uc-privacy-policy h2,
+.uc-privacy-policy h3 {
+  color: var(--ink);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-top: 1.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.uc-privacy-policy h1 {
+  font-size: 1.25rem;
+}
+
+.uc-privacy-policy h2 {
+  font-size: 1rem;
+}
+
+.uc-privacy-policy h3 {
+  font-size: 0.9375rem;
+}
+
+.uc-privacy-policy p,
+.uc-privacy-policy li {
+  color: var(--muted);
+}
+
+.uc-privacy-policy p {
+  margin-bottom: 0.75rem;
+}
+
+.uc-privacy-policy ul,
+.uc-privacy-policy ol {
+  margin: 0.5rem 0 1rem;
+  padding-left: 1.25rem;
+}
+
+.uc-privacy-policy ul {
+  list-style: disc;
+}
+
+.uc-privacy-policy ol {
+  list-style: decimal;
+}
+
+.uc-privacy-policy li {
+  margin-bottom: 0.375rem;
+}
+
+.uc-privacy-policy a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.uc-privacy-policy strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.uc-privacy-policy hr {
+  border-color: var(--border);
+  margin: 1.5rem 0;
+}
+
+.uc-privacy-policy table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.8125rem;
+}
+
+.uc-privacy-policy th,
+.uc-privacy-policy td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.625rem;
+  text-align: left;
+  color: var(--muted);
+}
+
+.uc-privacy-policy th {
+  color: var(--ink);
+  font-weight: 600;
+}
+
 .bg-grid {
   background-image:
     linear-gradient(to right, var(--border) 1px, transparent 1px),
