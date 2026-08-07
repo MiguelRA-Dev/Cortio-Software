@@ -90,7 +90,7 @@ function SidebarContent({ onNavigate }) {
   return (
     <>
       <div className="flex items-center gap-2 px-3 pb-6 pt-1">
-        <span className="text-xl font-semibold tracking-tight text-ink">Cortio</span>
+        <span className="text-xl font-semibold tracking-tight text-ink">Cortio Software</span>
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto">
