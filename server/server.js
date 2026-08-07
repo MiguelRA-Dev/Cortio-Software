@@ -39,16 +39,17 @@ app.use(
 );
 
 // Helmet's default CSP only allows same-origin scripts/frames — too strict for Google
-// Identity Services, which injects its own <script> and renders the sign-in button
-// inside a Google-hosted iframe.
+// Identity Services (its own <script> + a Google-hosted iframe for the sign-in button)
+// and for the Usercentrics privacy-policy generator embedded on /privacy (a remote
+// <script> that fetches and renders the policy document via XHR).
 app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
         ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-        'script-src': ["'self'", 'https://accounts.google.com'],
+        'script-src': ["'self'", 'https://accounts.google.com', 'https://policygenerator.usercentrics.eu'],
         'frame-src': ["'self'", 'https://accounts.google.com'],
-        'connect-src': ["'self'", 'https://accounts.google.com'],
+        'connect-src': ["'self'", 'https://accounts.google.com', 'https://policygenerator.usercentrics.eu'],
       },
     },
     // Helmet's default 'same-origin' severs window.opener on any popup this page opens
