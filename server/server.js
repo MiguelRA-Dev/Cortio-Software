@@ -104,12 +104,13 @@ connectDB()
       console.log(`Server running on port ${PORT}`);
     });
 
-    // No daily billing cron anymore — MercadoPago charges each subscription's card
-    // automatically on schedule and reports the result via the /billing/webhook route
-    // (see billingController.handleWebhook).
+    // No billing cron — each billing period is a Checkout Pro link the owner pays
+    // manually from /billing, and MercadoPago reports the result via the
+    // /billing/webhook route (see billingController.handleWebhook). Nothing recurs
+    // automatically, so there's nothing to schedule here.
 
     // Daily purge run — permanently deletes barbershops whose 15-day deletion grace
-    // period has elapsed. Staggered an hour after billing so it never races a renewal.
+    // period has elapsed.
     cron.schedule('0 7 * * *', () => {
       runDeletionJob().catch((err) => console.error('[deletionJob] Unexpected failure:', err));
     });

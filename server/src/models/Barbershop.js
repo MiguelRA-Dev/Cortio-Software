@@ -22,16 +22,9 @@ const barbershopSchema = new mongoose.Schema({
   subscriptionStatus: { type: String, enum: ['trialing', 'active', 'past_due', 'canceled'], default: 'trialing' },
   trialEndsAt: { type: Date },
   currentPeriodEnd: { type: Date },
-  // MercadoPago Preapproval id — the recurring subscription itself, not a single charge.
-  mercadopagoPreapprovalId: { type: String },
   mercadopagoCardBrand: { type: String },
-  // Set right before redirecting the owner to MercadoPago's hosted checkout, so that when
-  // they land back on /billing we can find "the subscription that was just authorized"
-  // among all of this app's subscriptions (MercadoPago's checkout link doesn't accept an
-  // external_reference to tag it with up front — see mercadopagoService.claimSubscription).
-  mercadopagoCheckoutStartedAt: { type: Date },
-  // Guards against double-applying the same authorized_payment if the webhook fires more
-  // than once for it (MercadoPago's delivery is at-least-once, not exactly-once).
+  // Guards against double-applying the same payment if the webhook fires more than once
+  // for it (MercadoPago's delivery is at-least-once, not exactly-once).
   lastPaymentReference: { type: String },
 
   // Self-service "delete my barbershop": set together when the owner requests it, and

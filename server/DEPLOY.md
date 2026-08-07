@@ -109,39 +109,34 @@ Ve a tu App Service → **Settings** → **Environment variables** (o **Configur
 | `EMAIL_FROM` | `notificaciones@cortiosoftware.com` (una vez verifiques el dominio en Resend — mientras tanto, `onboarding@resend.dev`) |
 | `GOOGLE_CLIENT_ID` | tu Client ID de Google |
 | `MERCADOPAGO_ACCESS_TOKEN` | tu Access Token de MercadoPago (de prueba hasta pasar a producción) |
-| `MERCADOPAGO_PLAN_ID` | el ID del plan de suscripción (ver más abajo cómo crearlo) |
 | `MERCADOPAGO_WEBHOOK_SECRET` | la "Clave secreta" de la sección Webhooks de tu aplicación en MercadoPago (no es el Access Token) |
+| `SUBSCRIPTION_PRICE_COP` | ej. `79000` |
 
 #### Cómo funciona el cobro con MercadoPago
 
-La app **nunca** llama a `POST /preapproval` directamente para crear una suscripción — ese
-endpoint responde `500 Internal server error` en el lado de MercadoPago sin importar el
-payload (confirmado contra una cuenta real y una de prueba, con el SDK oficial y con
-`curl` crudo). En su lugar:
+Cada mes es un **pago único de Checkout Pro** (`POST /checkout/preferences`), no una
+suscripción/mandato recurrente. Se probaron primero las Suscripciones de MercadoPago
+(`POST /preapproval`), pero ese producto tiene dos problemas que lo descartaron:
 
-1. Se crea **un solo Plan** para todo el producto, una vez, vía `POST /preapproval_plan`
-   (ese endpoint sí funciona). Ejemplo con `curl`:
-   ```bash
-   curl -X POST https://api.mercadopago.com/preapproval_plan \
-     -H "Authorization: Bearer $MERCADOPAGO_ACCESS_TOKEN" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "reason": "Cortio Software — Plan mensual",
-       "auto_recurring": { "frequency": 1, "frequency_type": "months", "transaction_amount": 79000, "currency_id": "COP" },
-       "back_url": "https://cortiosoftware.com/app/billing"
-     }'
-   ```
-   El `id` que devuelve es tu `MERCADOPAGO_PLAN_ID`.
-2. Cada dueño de barbería paga en la página hospedada de MercadoPago
-   (`/subscriptions/checkout?preapproval_plan_id=...`) — nunca mete la tarjeta dentro de
-   Cortio.
-3. Al volver, la app busca la suscripción recién autorizada y la marca como suya
-   (`PUT /preapproval/{id}`, que sí funciona) — ver `mercadopagoService.js` para el
-   detalle completo de por qué hace falta este paso en vez de crear la suscripción ya
-   identificada desde el principio.
-4. Los webhooks de MercadoPago (configurados abajo) mantienen la fecha de cobro al día
-   cada mes.
-| `SUBSCRIPTION_PRICE_COP` | ej. `79000` |
+1. El endpoint `POST /preapproval` responde `500 Internal server error` en el lado de
+   MercadoPago sin importar el payload (confirmado contra una cuenta real y una de
+   prueba, con el SDK oficial y con `curl` crudo).
+2. Aun rodeando ese bug con un Plan (`POST /preapproval_plan`, que sí funciona), el
+   checkout de Suscripciones **no acepta tarjetas débito colombianas** para la
+   autorización recurrente — el botón de pago queda deshabilitado — y la mayoría de los
+   dueños de barbería solo tienen débito, no crédito.
+
+Checkout Pro sí acepta débito, crédito, PSE y redes de efectivo, así que el flujo real es:
+
+1. El dueño pulsa "Suscribirme" en `/billing` → el backend crea una Preference
+   (`createPaymentPreference` en `mercadopagoService.js`) con `external_reference` igual
+   al `_id` de su barbería, y devuelve el `init_point` (el link hospedado de MercadoPago).
+2. El dueño paga ahí — nunca mete la tarjeta dentro de Cortio.
+3. El webhook de MercadoPago (configurado abajo, evento **"Pagos"**) notifica el pago;
+   el backend llama `GET /v1/payments/{id}`, lee `external_reference` para saber qué
+   barbería es, y si `status === 'approved'` extiende `currentPeriodEnd` un mes.
+4. El mes siguiente, el dueño repite el paso 1 — no hay cobro automático ni cron de
+   facturación, cada período es un link nuevo que se paga a mano desde `/billing`.
 
 **Nota sobre `PORT`**: `server.js` ya usa `process.env.PORT || 5000`, así que esto
 funciona automático — Azure Linux inyecta su propio `PORT` (normalmente 8080) sin que
@@ -271,7 +266,7 @@ az webapp log tail --resource-group cortio-rg --name cortio
 3. Confirma que `APP_URL` en Azure ya sea `https://cortiosoftware.com` (paso 3).
 4. **MercadoPago** → tu aplicación → **Webhooks** → pestaña **"Modo productivo"** →
    agrega la URL `https://cortiosoftware.com/api/billing/webhook`, marca el evento
-   **"Planes y suscripciones"**, guarda, y copia la "Clave secreta" que te genere a
+   **"Pagos"**, guarda, y copia la "Clave secreta" que te genere a
    `MERCADOPAGO_WEBHOOK_SECRET` en Azure.
 
 ---

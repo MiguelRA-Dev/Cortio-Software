@@ -1,17 +1,16 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { ShieldCheck, ExternalLink } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
 import { formatCOP } from '../../lib/format'
-import { getBillingStatus, startCheckout, claimSubscription } from '../../api/billing'
+import { getBillingStatus, startCheckout } from '../../api/billing'
 
 const STATUS_LABEL = { trialing: 'En prueba', active: 'Activa', past_due: 'Pago pendiente', canceled: 'Cancelada' }
 const STATUS_VARIANT = { trialing: 'neutral', active: 'success', past_due: 'danger', canceled: 'danger' }
 
 function BillingPage() {
-  const queryClient = useQueryClient()
   const { data: status, isLoading } = useQuery({ queryKey: ['billing-status'], queryFn: getBillingStatus })
   const [error, setError] = useState('')
 
@@ -21,15 +20,6 @@ function BillingPage() {
       window.location.href = data.checkoutUrl
     },
     onError: (err) => setError(err.response?.data?.error || 'No pudimos iniciar el pago. Intenta de nuevo.'),
-  })
-
-  const claimMutation = useMutation({
-    mutationFn: claimSubscription,
-    onSuccess: () => {
-      setError('')
-      queryClient.invalidateQueries({ queryKey: ['billing-status'] })
-    },
-    onError: (err) => setError(err.response?.data?.error || 'Todavía no encontramos tu pago. Espera unos segundos e intenta de nuevo.'),
   })
 
   if (isLoading) {
@@ -100,17 +90,6 @@ function BillingPage() {
             {checkoutMutation.isPending ? 'Redirigiendo...' : 'Suscribirme con MercadoPago'}
             <ExternalLink size={15} />
           </Button>
-
-          {status.checkoutPending && (
-            <Button
-              type="button"
-              onClick={() => claimMutation.mutate()}
-              disabled={claimMutation.isPending}
-              className="mt-2.5 w-full bg-transparent! text-ink! underline hover:bg-transparent!"
-            >
-              {claimMutation.isPending ? 'Confirmando...' : 'Ya pagué, confirmar mi suscripción'}
-            </Button>
-          )}
         </Card>
       )}
     </div>

@@ -9,6 +9,5 @@ router.post('/webhook', billingController.handleWebhook);
 
 router.get('/status', requireAuth, requireRole('owner', 'barber'), billingController.getStatus);
 router.post('/checkout', requireAuth, requireRole('owner'), billingController.startCheckout);
-router.post('/claim', requireAuth, requireRole('owner'), billingController.claimSubscription);
 
 module.exports = router;

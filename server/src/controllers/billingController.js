@@ -3,24 +3,21 @@ const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { isBlocked } = require('../middleware/subscription');
 const {
-  getPlanCheckoutUrl,
-  findUnclaimedSubscription,
-  claimSubscription: tagSubscriptionExternalReference,
-  getInvoice,
+  createPaymentPreference,
+  getPayment,
   verifyWebhookSignature,
   InvalidWebhookSignatureError
 } = require('../services/mercadopagoService');
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
-// Shared by the claim step and the webhook, so both paths update subscription state the
-// same way and don't double-apply the same charge (MercadoPago's webhook delivery is
-// at-least-once, not exactly-once).
-async function applyInvoiceResult({ barbershop, invoice }) {
-  const paymentStatus = invoice.payment?.status;
-
-  if (paymentStatus === 'approved') {
-    if (barbershop.lastPaymentReference === invoice.id && barbershop.subscriptionStatus === 'active') {
+// Shared by the webhook (and only the webhook now — there's no synchronous "claim" step
+// anymore, since a Checkout Pro payment already carries our external_reference from the
+// moment we create it). Guards against double-applying the same payment if MercadoPago
+// redelivers the notification (its webhook delivery is at-least-once, not exactly-once).
+async function applyPaymentResult({ barbershop, payment }) {
+  if (payment.status === 'approved') {
+    if (barbershop.lastPaymentReference === String(payment.id) && barbershop.subscriptionStatus === 'active') {
       return;
     }
     const now = new Date();
@@ -30,20 +27,21 @@ async function applyInvoiceResult({ barbershop, invoice }) {
 
     barbershop.subscriptionStatus = 'active';
     barbershop.currentPeriodEnd = next;
-    barbershop.lastPaymentReference = invoice.id;
+    barbershop.mercadopagoCardBrand = payment.payment_method_id || undefined;
+    barbershop.lastPaymentReference = String(payment.id);
     await barbershop.save();
-  } else if (paymentStatus === 'rejected') {
+  } else if (payment.status === 'rejected') {
     barbershop.subscriptionStatus = 'past_due';
-    barbershop.lastPaymentReference = invoice.id;
+    barbershop.lastPaymentReference = String(payment.id);
     await barbershop.save();
   }
-  // 'pending' / 'in_process' — leave subscriptionStatus as-is, a later webhook call
-  // will resolve it once MercadoPago finishes processing.
+  // 'pending' / 'in_process' (common for PSE and cash network payments) — leave
+  // subscriptionStatus as-is, a later webhook call resolves it once it clears.
 }
 
 const getStatus = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findById(req.user.barbershop).select(
-    'subscriptionStatus trialEndsAt currentPeriodEnd mercadopagoCardBrand mercadopagoCheckoutStartedAt deletionRequestedAt scheduledPurgeAt'
+    'subscriptionStatus trialEndsAt currentPeriodEnd mercadopagoCardBrand deletionRequestedAt scheduledPurgeAt'
   );
   if (!barbershop) {
     throw new ApiError(404, 'Barbería no encontrada');
@@ -64,62 +62,33 @@ const getStatus = asyncHandler(async (req, res) => {
     deletionRequestedAt: barbershop.deletionRequestedAt,
     scheduledPurgeAt: barbershop.scheduledPurgeAt,
     cardBrand: barbershop.mercadopagoCardBrand || null,
-    checkoutPending: Boolean(barbershop.mercadopagoCheckoutStartedAt),
     priceCOP: Number(process.env.SUBSCRIPTION_PRICE_COP || 0)
   });
 });
 
-// Step 1: hand the owner the link to MercadoPago's hosted checkout for the app's one
-// subscription plan, and mark when we sent them there (see claimSubscription below).
+// Generates a fresh Checkout Pro payment link for this billing period — the owner pays
+// it on MercadoPago's own hosted page (debit, credit, PSE, or cash network), then the
+// webhook below extends currentPeriodEnd once it clears.
 const startCheckout = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findById(req.user.barbershop);
   if (!barbershop) {
     throw new ApiError(404, 'Barbería no encontrada');
   }
 
-  barbershop.mercadopagoCheckoutStartedAt = new Date();
-  await barbershop.save();
-
-  res.json({ checkoutUrl: getPlanCheckoutUrl() });
-});
-
-// Step 2: called when the owner lands back on /app/billing after paying. Finds the
-// subscription they just authorized (see mercadopagoService.findUnclaimedSubscription for
-// why this has to search instead of just knowing the id), tags it as theirs, and reflects
-// the just-completed charge immediately instead of waiting on the webhook.
-const claimSubscription = asyncHandler(async (req, res) => {
-  const barbershop = await Barbershop.findById(req.user.barbershop);
-  if (!barbershop) {
-    throw new ApiError(404, 'Barbería no encontrada');
-  }
-  if (!barbershop.mercadopagoCheckoutStartedAt) {
-    throw new ApiError(400, 'No hay un pago en curso para confirmar');
+  const priceCOP = Number(process.env.SUBSCRIPTION_PRICE_COP);
+  if (!priceCOP) {
+    throw new ApiError(500, 'SUBSCRIPTION_PRICE_COP no está configurado en el servidor');
   }
 
-  const found = await findUnclaimedSubscription({ sinceDate: barbershop.mercadopagoCheckoutStartedAt });
-  if (!found) {
-    throw new ApiError(404, 'Todavía no encontramos tu pago. Espera unos segundos e intenta de nuevo.');
-  }
+  const preference = await createPaymentPreference({
+    barbershopId: String(barbershop._id),
+    payerEmail: req.user.email,
+    amountCOP: priceCOP,
+    reason: `Cortio Software — Suscripción mensual (${barbershop.name})`,
+    backUrl: `${process.env.APP_URL}/app/billing`
+  });
 
-  await tagSubscriptionExternalReference({ preapprovalId: found.id, externalReference: String(barbershop._id) });
-
-  barbershop.mercadopagoPreapprovalId = found.id;
-  barbershop.mercadopagoCardBrand = found.payment_method_id || undefined;
-  barbershop.mercadopagoCheckoutStartedAt = undefined;
-
-  // findUnclaimedSubscription only ever matches status "authorized", which means
-  // MercadoPago already accepted the card — good enough to unblock access immediately.
-  // summarized.charged_quantity isn't used here because it can lag a few seconds behind
-  // authorization; the subscription_authorized_payment webhook is what corrects this
-  // later if the actual charge turns out to have failed.
-  const now = new Date();
-  const next = new Date(now);
-  next.setMonth(next.getMonth() + 1);
-  barbershop.subscriptionStatus = 'active';
-  barbershop.currentPeriodEnd = next;
-  await barbershop.save();
-
-  res.json({ subscriptionStatus: barbershop.subscriptionStatus, currentPeriodEnd: barbershop.currentPeriodEnd });
+  res.json({ checkoutUrl: preference.init_point });
 });
 
 const handleWebhook = asyncHandler(async (req, res) => {
@@ -145,12 +114,12 @@ const handleWebhook = asyncHandler(async (req, res) => {
 
   const topic = req.body?.type || req.query.type;
 
-  if (topic === 'subscription_authorized_payment' && dataId) {
-    const invoice = await getInvoice(dataId);
-    if (invoice.preapproval_id) {
-      const barbershop = await Barbershop.findOne({ mercadopagoPreapprovalId: invoice.preapproval_id });
+  if (topic === 'payment' && dataId) {
+    const payment = await getPayment(dataId);
+    if (payment.external_reference) {
+      const barbershop = await Barbershop.findById(payment.external_reference);
       if (barbershop) {
-        await applyInvoiceResult({ barbershop, invoice });
+        await applyPaymentResult({ barbershop, payment });
       }
     }
   }
@@ -158,4 +127,4 @@ const handleWebhook = asyncHandler(async (req, res) => {
   res.status(200).json({ received: true });
 });
 
-module.exports = { getStatus, startCheckout, claimSubscription, handleWebhook, applyInvoiceResult };
+module.exports = { getStatus, startCheckout, handleWebhook, applyPaymentResult };
