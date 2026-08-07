@@ -211,19 +211,49 @@ const registerBarber = asyncHandler(async (req, res) => {
 });
 
 const registerCustomer = asyncHandler(async (req, res) => {
-  const { name, email, password, phone } = req.body;
+  const { name, email: rawEmail, password, phone, googleCredential } = req.body;
 
-  if (!name || !email || !password) {
-    throw new ApiError(400, 'name, email y password son requeridos');
+  if (!name) {
+    throw new ApiError(400, 'name es requerido');
   }
 
-  const existingEmail = await User.findOne({ email: email.toLowerCase() });
+  // Same two paths as registerBarbershop: a password pair, or a verified Google
+  // credential (which also vouches for the email, skipping our own verification step).
+  let email;
+  let passwordHash;
+  let emailVerified = false;
+
+  if (googleCredential) {
+    let payload;
+    try {
+      const ticket = await getGoogleClient().verifyIdToken({
+        idToken: googleCredential,
+        audience: process.env.GOOGLE_CLIENT_ID
+      });
+      payload = ticket.getPayload();
+    } catch (err) {
+      throw new ApiError(401, 'El credential de Google es inválido');
+    }
+    if (!payload?.email || !payload.email_verified) {
+      throw new ApiError(401, 'El correo de tu cuenta de Google no está verificado');
+    }
+    email = payload.email.toLowerCase();
+    emailVerified = true;
+    passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), SALT_ROUNDS);
+  } else {
+    if (!rawEmail || !password) {
+      throw new ApiError(400, 'email y password son requeridos');
+    }
+    email = rawEmail.toLowerCase();
+    passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+  }
+
+  const existingEmail = await User.findOne({ email });
   if (existingEmail) {
     throw new ApiError(409, 'Este correo ya está en uso');
   }
 
-  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-  const customer = await User.create({ name, email, passwordHash, phone, role: 'customer' });
+  const customer = await User.create({ name, email, passwordHash, phone, role: 'customer', emailVerified });
 
   const token = signToken(customer);
   res.status(201).json({ token, user: sanitizeUser(customer) });

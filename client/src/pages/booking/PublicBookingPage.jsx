@@ -9,6 +9,7 @@ import Modal from '../../components/ui/Modal'
 import ThemeToggle from '../../components/ui/ThemeToggle'
 import Stepper from '../../components/booking/Stepper'
 import BarberCard from '../../components/booking/BarberCard'
+import GoogleSignInButton from '../../components/auth/GoogleSignInButton'
 import { formatCOP } from '../../lib/format'
 import { resolveAssetUrl } from '../../lib/assets'
 import { useAuth } from '../../context/AuthContext'
@@ -73,33 +74,153 @@ function ReviewForm({ appointmentId, onDone }) {
   )
 }
 
-function CustomerAuthForm({ idPrefix, mode, setMode, contact, setContact, onSubmit, submitting, error, submitLabel }) {
+// Client-side only — for prefilling the phone/terms step after Google auth. The backend
+// independently re-verifies the raw credential with Google before ever trusting it.
+function decodeGoogleCredential(credential) {
+  const base64Url = credential.split('.')[1]
+  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+  const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=')
+  return JSON.parse(atob(padded))
+}
+
+function TermsCheckbox({ checked, onChange }) {
+  return (
+    <label className="flex items-start gap-2.5 text-xs text-muted">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-border accent-ink"
+      />
+      <span>
+        Acepto los{' '}
+        <Link to="/terms" target="_blank" className="font-medium text-ink underline hover:text-accent">
+          Términos y condiciones
+        </Link>{' '}
+        y el tratamiento de mis datos personales según la{' '}
+        <Link to="/privacy" target="_blank" className="font-medium text-ink underline hover:text-accent">
+          Política de privacidad
+        </Link>{' '}
+        de Cortio Software.
+      </span>
+    </label>
+  )
+}
+
+function CustomerAuthForm({
+  idPrefix,
+  mode,
+  setMode,
+  contact,
+  setContact,
+  onSubmit,
+  onGoogleCredential,
+  submitting,
+  error,
+  submitLabel,
+}) {
   const [acceptedTerms, setAcceptedTerms] = useState(false)
+  // Google only proves the email — it never bypasses the phone/terms step. The
+  // credential sits here, unsubmitted, until the user finishes that second section.
+  const [pendingGoogleCredential, setPendingGoogleCredential] = useState(null)
+
+  function changeMode(next) {
+    setPendingGoogleCredential(null)
+    setMode(next)
+  }
+
+  function handleGooglePick(credential) {
+    try {
+      const payload = decodeGoogleCredential(credential)
+      setContact((c) => ({ ...c, name: payload.name || c.name, email: payload.email || c.email }))
+    } catch {
+      // Nothing to prefill from — the finish-registration step below still works, and
+      // the backend re-verifies the credential itself regardless of what we read here.
+    }
+    setPendingGoogleCredential(credential)
+  }
+
+  function handleFinishGoogle(e) {
+    e.preventDefault()
+    onGoogleCredential(pendingGoogleCredential)
+  }
+
+  const tabs = (
+    <div className="flex gap-1 rounded-lg border border-border bg-surface-2 p-1">
+      <button
+        type="button"
+        onClick={() => changeMode('register')}
+        className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+          mode === 'register' ? 'bg-accent text-accent-ink' : 'text-muted hover:text-ink'
+        }`}
+      >
+        Crear cuenta
+      </button>
+      <button
+        type="button"
+        onClick={() => changeMode('login')}
+        className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+          mode === 'login' ? 'bg-accent text-accent-ink' : 'text-muted hover:text-ink'
+        }`}
+      >
+        Ya tengo cuenta
+      </button>
+    </div>
+  )
+
+  // Section 2 of the Google path: it already proved the email, now we just need a phone
+  // number and explicit consent before the account actually gets created.
+  if (mode === 'register' && pendingGoogleCredential) {
+    return (
+      <div>
+        {tabs}
+        <form onSubmit={handleFinishGoogle} className="mt-4 flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-2 px-3.5 py-2.5 text-sm">
+            <span className="truncate text-ink">{contact.name || contact.email || 'Tu cuenta de Google'}</span>
+            <button
+              type="button"
+              onClick={() => setPendingGoogleCredential(null)}
+              className="shrink-0 text-xs text-muted underline hover:text-ink"
+            >
+              Cambiar
+            </button>
+          </div>
+          <Input
+            id={`${idPrefix}GooglePhone`}
+            label="Teléfono"
+            placeholder="300 123 4567"
+            value={contact.phone}
+            onChange={(e) => setContact({ ...contact, phone: e.target.value })}
+            required
+          />
+          <TermsCheckbox checked={acceptedTerms} onChange={setAcceptedTerms} />
+          {error && (
+            <p className="rounded-lg border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-sm text-danger">{error}</p>
+          )}
+          <Button type="submit" disabled={submitting || !acceptedTerms || !contact.phone.trim()} className="w-full">
+            {submitting ? 'Procesando...' : 'Finalizar registro'}
+          </Button>
+        </form>
+      </div>
+    )
+  }
 
   return (
     <div>
-      <div className="flex gap-1 rounded-lg border border-border bg-surface-2 p-1">
-        <button
-          type="button"
-          onClick={() => setMode('register')}
-          className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-            mode === 'register' ? 'bg-accent text-accent-ink' : 'text-muted hover:text-ink'
-          }`}
-        >
-          Crear cuenta
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode('login')}
-          className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-            mode === 'login' ? 'bg-accent text-accent-ink' : 'text-muted hover:text-ink'
-          }`}
-        >
-          Ya tengo cuenta
-        </button>
-      </div>
+      {tabs}
 
       <form onSubmit={onSubmit} className="mt-4 flex flex-col gap-4">
+        {onGoogleCredential && (
+          <>
+            <GoogleSignInButton onCredential={mode === 'register' ? handleGooglePick : onGoogleCredential} />
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs text-muted">o</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+          </>
+        )}
+
         {mode === 'register' && (
           <>
             <Input
@@ -144,26 +265,13 @@ function CustomerAuthForm({ idPrefix, mode, setMode, contact, setContact, onSubm
               Con esto creamos tu cuenta para que puedas ver y gestionar tus citas la próxima vez sin volver a
               registrarte.
             </p>
-            <label className="-mt-1 flex items-start gap-2.5 text-xs text-muted">
-              <input
-                type="checkbox"
-                checked={acceptedTerms}
-                onChange={(e) => setAcceptedTerms(e.target.checked)}
-                className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-border accent-ink"
-              />
-              <span>
-                Acepto los{' '}
-                <Link to="/terms" target="_blank" className="font-medium text-ink underline hover:text-accent">
-                  Términos y condiciones
-                </Link>{' '}
-                y la{' '}
-                <Link to="/privacy" target="_blank" className="font-medium text-ink underline hover:text-accent">
-                  Política de privacidad
-                </Link>{' '}
-                de Cortio.
-              </span>
-            </label>
+            <TermsCheckbox checked={acceptedTerms} onChange={setAcceptedTerms} />
           </>
+        )}
+        {mode === 'login' && (
+          <Link to="/forgot-password" target="_blank" className="-mt-2 self-end text-xs text-muted underline hover:text-ink">
+            ¿Olvidaste tu contraseña?
+          </Link>
         )}
         {error && (
           <p className="rounded-lg border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-sm text-danger">{error}</p>
@@ -179,7 +287,7 @@ function CustomerAuthForm({ idPrefix, mode, setMode, contact, setContact, onSubm
 function PoweredByCortio() {
   return (
     <footer className="mt-8 w-full border-t border-border py-8 text-center">
-      <p className="text-2xl font-semibold tracking-tight text-ink">Cortio</p>
+      <p className="text-2xl font-semibold tracking-tight text-ink">Cortio Software</p>
       <p className="mt-1 text-xs text-muted">© {new Date().getFullYear()} Cortio Software</p>
     </footer>
   )
@@ -201,7 +309,7 @@ function formatTime(iso) {
 
 function PublicBookingPage() {
   const { slug } = useParams()
-  const { user, isAuthenticated, login, registerCustomer, logout } = useAuth()
+  const { user, isAuthenticated, login, loginWithGoogle, registerCustomer, logout } = useAuth()
   const queryClient = useQueryClient()
 
   const [step, setStep] = useState(1)
@@ -331,6 +439,24 @@ function PublicBookingPage() {
     }
   }
 
+  async function handleGoogleAuth(credential) {
+    setBookingError('')
+    setSubmitting(true)
+    try {
+      if (authMode === 'register') {
+        await registerCustomer({ name: contact.name, phone: contact.phone, googleCredential: credential })
+      } else {
+        await loginWithGoogle(credential)
+      }
+      await createAppointment({ slug, barberId: barber._id, serviceId: service._id, startTime: selectedTime })
+      setConfirmed(true)
+    } catch (err) {
+      setBookingError(err.response?.data?.error || 'No pudimos completar la reserva. Intenta de nuevo.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   function switchAccount() {
     logout()
     setContact({ name: '', email: '', phone: '', password: '' })
@@ -350,6 +476,24 @@ function PublicBookingPage() {
         })
       } else {
         await login(headerContact.email, headerContact.password)
+      }
+      setShowAuthModal(false)
+      setHeaderContact({ name: '', email: '', phone: '', password: '' })
+    } catch (err) {
+      setHeaderAuthError(err.response?.data?.error || 'No pudimos iniciar sesión. Intenta de nuevo.')
+    } finally {
+      setHeaderAuthSubmitting(false)
+    }
+  }
+
+  async function handleHeaderGoogleAuth(credential) {
+    setHeaderAuthError('')
+    setHeaderAuthSubmitting(true)
+    try {
+      if (headerAuthMode === 'register') {
+        await registerCustomer({ name: headerContact.name, phone: headerContact.phone, googleCredential: credential })
+      } else {
+        await loginWithGoogle(credential)
       }
       setShowAuthModal(false)
       setHeaderContact({ name: '', email: '', phone: '', password: '' })
@@ -684,6 +828,7 @@ function PublicBookingPage() {
                     contact={contact}
                     setContact={setContact}
                     onSubmit={handleConfirm}
+                    onGoogleCredential={handleGoogleAuth}
                     submitting={submitting}
                     error={bookingError}
                     submitLabel={authMode === 'register' ? 'Crear cuenta y confirmar' : 'Iniciar sesión y confirmar'}
@@ -714,6 +859,7 @@ function PublicBookingPage() {
           contact={headerContact}
           setContact={setHeaderContact}
           onSubmit={handleHeaderAuth}
+          onGoogleCredential={handleHeaderGoogleAuth}
           submitting={headerAuthSubmitting}
           error={headerAuthError}
           submitLabel={headerAuthMode === 'register' ? 'Crear cuenta' : 'Iniciar sesión'}
