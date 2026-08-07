@@ -70,11 +70,19 @@ const registerBarbershop = asyncHandler(async (req, res) => {
     address,
     addressDetails,
     serviceCategories,
-    googleCredential
+    googleCredential,
+    identificationType,
+    identificationNumber
   } = req.body;
 
   if (!ownerName || !barbershopName || !slug) {
     throw new ApiError(400, 'ownerName, barbershopName y slug son requeridos');
+  }
+  if (!identificationType || !identificationNumber) {
+    throw new ApiError(400, 'identificationType e identificationNumber son requeridos');
+  }
+  if (!['CC', 'CE', 'NIT', 'PA'].includes(identificationType)) {
+    throw new ApiError(400, 'identificationType debe ser CC, CE, NIT o PA');
   }
 
   // Two ways to prove ownership of the email: a password pair, or a verified Google
@@ -123,12 +131,25 @@ const registerBarbershop = asyncHandler(async (req, res) => {
   if (existingEmail) {
     throw new ApiError(409, 'Este correo ya está en uso');
   }
+  const existingId = await User.findOne({ identificationNumber });
+  if (existingId) {
+    throw new ApiError(409, 'Ya existe una cuenta registrada con este número de documento');
+  }
   const existingSlug = await Barbershop.findOne({ slug: normalizedSlug });
   if (existingSlug) {
     throw new ApiError(409, 'Este slug ya está en uso');
   }
 
-  const owner = await User.create({ name: ownerName, email, passwordHash, phone, role: 'owner', emailVerified });
+  const owner = await User.create({
+    name: ownerName,
+    email,
+    passwordHash,
+    phone,
+    role: 'owner',
+    emailVerified,
+    identificationType,
+    identificationNumber
+  });
 
   const trialEndsAt = new Date();
   trialEndsAt.setDate(trialEndsAt.getDate() + 30);

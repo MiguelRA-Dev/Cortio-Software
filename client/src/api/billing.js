@@ -5,7 +5,12 @@ export async function getBillingStatus() {
   return data
 }
 
-export async function attachPaymentMethod(cardToken) {
-  const { data } = await apiClient.post('/billing/payment-method', { cardToken })
+export async function startCheckout() {
+  const { data } = await apiClient.post('/billing/checkout')
+  return data
+}
+
+export async function claimSubscription() {
+  const { data } = await apiClient.post('/billing/claim')
   return data
 }

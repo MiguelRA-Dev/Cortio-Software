@@ -3,6 +3,7 @@ const path = require('path');
 const Barbershop = require('../models/Barbershop');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
+const { cancelSubscription } = require('../services/mercadopagoService');
 
 const getBySlug = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findOne({ slug: req.params.slug, active: true });
@@ -63,9 +64,21 @@ const requestDeletion = asyncHandler(async (req, res) => {
 
   barbershop.deletionRequestedAt = now;
   barbershop.scheduledPurgeAt = scheduledPurgeAt;
-  // Stops the billing cron from charging this shop again and blocks panel access via
-  // the same requireActiveSubscription check any other canceled account hits.
+  // Blocks panel access via the same requireActiveSubscription check any other canceled
+  // account hits. MercadoPago's recurring charges run on its own schedule regardless of
+  // this field, so the subscription itself is cancelled explicitly right below — without
+  // that, the card keeps getting charged monthly with no local trace of it to stop later.
   barbershop.subscriptionStatus = 'canceled';
+
+  if (barbershop.mercadopagoPreapprovalId) {
+    // Best-effort: a flaky MercadoPago API call shouldn't block the deletion request
+    // itself, but it should be visible in logs since it means we're still on the hook
+    // for stopping a real recurring charge by some other means.
+    await cancelSubscription(barbershop.mercadopagoPreapprovalId).catch((err) =>
+      console.error(`[barbershop] Failed to cancel MercadoPago subscription for ${barbershop._id}:`, err.message)
+    );
+  }
+
   await barbershop.save();
 
   res.json(barbershop);

@@ -108,10 +108,39 @@ Ve a tu App Service → **Settings** → **Environment variables** (o **Configur
 | `RESEND_API_KEY` | tu API key de Resend |
 | `EMAIL_FROM` | `notificaciones@cortiosoftware.com` (una vez verifiques el dominio en Resend — mientras tanto, `onboarding@resend.dev`) |
 | `GOOGLE_CLIENT_ID` | tu Client ID de Google |
-| `WOMPI_ENV` | `sandbox` (hasta que Wompi te apruebe producción) |
-| `WOMPI_PUBLIC_KEY` | tu llave pública de Wompi |
-| `WOMPI_PRIVATE_KEY` | tu llave privada de Wompi |
-| `WOMPI_EVENTS_SECRET` | tu secreto de eventos de Wompi |
+| `MERCADOPAGO_ACCESS_TOKEN` | tu Access Token de MercadoPago (de prueba hasta pasar a producción) |
+| `MERCADOPAGO_PLAN_ID` | el ID del plan de suscripción (ver más abajo cómo crearlo) |
+| `MERCADOPAGO_WEBHOOK_SECRET` | la "Clave secreta" de la sección Webhooks de tu aplicación en MercadoPago (no es el Access Token) |
+
+#### Cómo funciona el cobro con MercadoPago
+
+La app **nunca** llama a `POST /preapproval` directamente para crear una suscripción — ese
+endpoint responde `500 Internal server error` en el lado de MercadoPago sin importar el
+payload (confirmado contra una cuenta real y una de prueba, con el SDK oficial y con
+`curl` crudo). En su lugar:
+
+1. Se crea **un solo Plan** para todo el producto, una vez, vía `POST /preapproval_plan`
+   (ese endpoint sí funciona). Ejemplo con `curl`:
+   ```bash
+   curl -X POST https://api.mercadopago.com/preapproval_plan \
+     -H "Authorization: Bearer $MERCADOPAGO_ACCESS_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "reason": "Cortio Software — Plan mensual",
+       "auto_recurring": { "frequency": 1, "frequency_type": "months", "transaction_amount": 79000, "currency_id": "COP" },
+       "back_url": "https://cortiosoftware.com/app/billing"
+     }'
+   ```
+   El `id` que devuelve es tu `MERCADOPAGO_PLAN_ID`.
+2. Cada dueño de barbería paga en la página hospedada de MercadoPago
+   (`/subscriptions/checkout?preapproval_plan_id=...`) — nunca mete la tarjeta dentro de
+   Cortio.
+3. Al volver, la app busca la suscripción recién autorizada y la marca como suya
+   (`PUT /preapproval/{id}`, que sí funciona) — ver `mercadopagoService.js` para el
+   detalle completo de por qué hace falta este paso en vez de crear la suscripción ya
+   identificada desde el principio.
+4. Los webhooks de MercadoPago (configurados abajo) mantienen la fecha de cobro al día
+   cada mes.
 | `SUBSCRIPTION_PRICE_COP` | ej. `79000` |
 
 **Nota sobre `PORT`**: `server.js` ya usa `process.env.PORT || 5000`, así que esto
@@ -240,6 +269,10 @@ az webapp log tail --resource-group cortio-rg --name cortio
    den (SPF/DKIM/DMARC), espera verificación, y cambia `EMAIL_FROM` en Azure a algo
    como `notificaciones@cortiosoftware.com`.
 3. Confirma que `APP_URL` en Azure ya sea `https://cortiosoftware.com` (paso 3).
+4. **MercadoPago** → tu aplicación → **Webhooks** → pestaña **"Modo productivo"** →
+   agrega la URL `https://cortiosoftware.com/api/billing/webhook`, marca el evento
+   **"Planes y suscripciones"**, guarda, y copia la "Clave secreta" que te genere a
+   `MERCADOPAGO_WEBHOOK_SECRET` en Azure.
 
 ---
 

@@ -4,6 +4,7 @@ import AuthLayout from '../../layouts/AuthLayout'
 import Input from '../../components/ui/Input'
 import Button from '../../components/ui/Button'
 import Switch from '../../components/ui/Switch'
+import Select from '../../components/ui/Select'
 import Stepper from '../../components/booking/Stepper'
 import GoogleSignInButton from '../../components/auth/GoogleSignInButton'
 import { useAuth } from '../../context/AuthContext'
@@ -56,6 +57,8 @@ const EMPTY_FORM = {
   googleCredential: null,
   ownerName: '',
   phone: '',
+  identificationType: 'CC',
+  identificationNumber: '',
   barbershopName: '',
   slug: '',
   location: '',
@@ -116,7 +119,7 @@ function RegisterPage() {
       if (form.password.length < 6) return 'La contraseña debe tener al menos 6 caracteres.'
     }
     if (n === 2) {
-      if (!form.ownerName || !form.phone) return 'Completa todos los campos.'
+      if (!form.ownerName || !form.phone || !form.identificationNumber) return 'Completa todos los campos.'
     }
     if (n === 3) {
       if (!form.barbershopName || !form.slug || !form.location || !form.address) return 'Completa todos los campos.'
@@ -272,6 +275,26 @@ function RegisterPage() {
               onChange={handleChange}
               required
             />
+            <div className="grid grid-cols-[7.5rem_1fr] gap-3">
+              <Select id="identificationType" name="identificationType" label="Tipo" value={form.identificationType} onChange={handleChange}>
+                <option value="CC">CC</option>
+                <option value="CE">CE</option>
+                <option value="NIT">NIT</option>
+                <option value="PA">Pasaporte</option>
+              </Select>
+              <Input
+                id="identificationNumber"
+                name="identificationNumber"
+                label="Número de documento"
+                placeholder="1020304050"
+                value={form.identificationNumber}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <p className="-mt-2 text-xs text-muted">
+              Lo necesitamos para verificar tu identidad y para procesar el pago de tu suscripción.
+            </p>
           </>
         )}
 

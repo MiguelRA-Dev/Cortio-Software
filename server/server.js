@@ -9,7 +9,6 @@ const cron = require('node-cron');
 const connectDB = require('./src/config/db');
 const apiRoutes = require('./src/routes');
 const { notFound, errorHandler } = require('./src/middleware/errorHandler');
-const { runBillingJob } = require('./src/jobs/billingJob');
 const { runDeletionJob } = require('./src/jobs/deletionJob');
 const ApiError = require('./src/utils/ApiError');
 
@@ -23,7 +22,7 @@ app.set('trust proxy', 1);
 // Only the app's own frontend should ever be allowed to call this API directly from
 // a browser. APP_URL already points at that origin (also used to build email links),
 // so it doubles as the CORS allowlist instead of a second env var to keep in sync.
-// Requests with no Origin header (curl, server-to-server, the Wompi webhook) are
+// Requests with no Origin header (curl, server-to-server, the MercadoPago webhook) are
 // always let through — they're not the browser-driven case CORS protects against.
 const allowedOrigins = new Set(['http://localhost:5173', process.env.APP_URL].filter(Boolean));
 app.use(
@@ -105,10 +104,9 @@ connectDB()
       console.log(`Server running on port ${PORT}`);
     });
 
-    // Daily subscription renewal run — charges every barbershop whose paid period ended.
-    cron.schedule('0 6 * * *', () => {
-      runBillingJob().catch((err) => console.error('[billingJob] Unexpected failure:', err));
-    });
+    // No daily billing cron anymore — MercadoPago charges each subscription's card
+    // automatically on schedule and reports the result via the /billing/webhook route
+    // (see billingController.handleWebhook).
 
     // Daily purge run — permanently deletes barbershops whose 15-day deletion grace
     // period has elapsed. Staggered an hour after billing so it never races a renewal.

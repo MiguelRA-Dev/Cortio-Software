@@ -19,6 +19,10 @@ const userSchema = new mongoose.Schema({
   passwordHash: { type: String, required: true },
   phone: { type: String, trim: true },
   role: { type: String, enum: ['owner', 'barber', 'customer'], required: true },
+  // Collected from barbershop owners at registration — ties the account to a real
+  // person (dedup across emails) and is required again by MercadoPago to tokenize a card.
+  identificationType: { type: String, enum: ['CC', 'CE', 'NIT', 'PA'] },
+  identificationNumber: { type: String, trim: true },
   avatarUrl: { type: String },
   active: { type: Boolean, default: true },
 
@@ -37,5 +41,8 @@ const userSchema = new mongoose.Schema({
   schedule: [workingHoursSchema],
   scheduleExceptions: [scheduleExceptionSchema]
 }, { timestamps: true });
+
+// Sparse so barbers/customers (who never set this) don't collide on a shared null value.
+userSchema.index({ identificationNumber: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model('User', userSchema);
