@@ -29,6 +29,7 @@ async function applyPaymentResult({ barbershop, payment }) {
     barbershop.currentPeriodEnd = next;
     barbershop.mercadopagoCardBrand = payment.payment_method_id || undefined;
     barbershop.lastPaymentReference = String(payment.id);
+    barbershop.cancelAtPeriodEnd = false;
     await barbershop.save();
   } else if (payment.status === 'rejected') {
     barbershop.subscriptionStatus = 'past_due';
@@ -41,13 +42,24 @@ async function applyPaymentResult({ barbershop, payment }) {
 
 const getStatus = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findById(req.user.barbershop).select(
-    'subscriptionStatus trialEndsAt currentPeriodEnd mercadopagoCardBrand deletionRequestedAt scheduledPurgeAt'
+    'subscriptionStatus trialEndsAt currentPeriodEnd mercadopagoCardBrand deletionRequestedAt scheduledPurgeAt cancelAtPeriodEnd'
   );
   if (!barbershop) {
     throw new ApiError(404, 'Barbería no encontrada');
   }
 
   const now = new Date();
+  const blocked = isBlocked(barbershop, now);
+
+  // Lazy transition: nothing crons this, so the first status check after a canceled
+  // owner's paid period actually elapses is what formally flips them to 'canceled'
+  // instead of leaving 'active'+blocked dangling forever.
+  if (barbershop.cancelAtPeriodEnd && blocked && barbershop.subscriptionStatus === 'active') {
+    barbershop.subscriptionStatus = 'canceled';
+    barbershop.cancelAtPeriodEnd = false;
+    await barbershop.save();
+  }
+
   const trialDaysLeft =
     barbershop.subscriptionStatus === 'trialing' && barbershop.trialEndsAt
       ? Math.max(0, Math.ceil((barbershop.trialEndsAt - now) / ONE_DAY_MS))
@@ -62,8 +74,40 @@ const getStatus = asyncHandler(async (req, res) => {
     deletionRequestedAt: barbershop.deletionRequestedAt,
     scheduledPurgeAt: barbershop.scheduledPurgeAt,
     cardBrand: barbershop.mercadopagoCardBrand || null,
+    cancelAtPeriodEnd: barbershop.cancelAtPeriodEnd,
     priceCOP: Number(process.env.SUBSCRIPTION_PRICE_COP || 0)
   });
+});
+
+// Self-service "stop renewing" — there's no recurring mandate to cancel on
+// MercadoPago's side (each period is its own Checkout Pro link), so this just records
+// the owner's intent. Access continues until currentPeriodEnd, same as if they simply
+// hadn't paid again; getStatus above flips the formal status once that date passes.
+const cancelSubscription = asyncHandler(async (req, res) => {
+  const barbershop = await Barbershop.findById(req.user.barbershop);
+  if (!barbershop) {
+    throw new ApiError(404, 'Barbería no encontrada');
+  }
+  if (barbershop.subscriptionStatus !== 'active') {
+    throw new ApiError(400, 'No tienes una suscripción activa para cancelar');
+  }
+
+  barbershop.cancelAtPeriodEnd = true;
+  await barbershop.save();
+
+  res.json({ cancelAtPeriodEnd: true });
+});
+
+const resumeSubscription = asyncHandler(async (req, res) => {
+  const barbershop = await Barbershop.findById(req.user.barbershop);
+  if (!barbershop) {
+    throw new ApiError(404, 'Barbería no encontrada');
+  }
+
+  barbershop.cancelAtPeriodEnd = false;
+  await barbershop.save();
+
+  res.json({ cancelAtPeriodEnd: false });
 });
 
 // Generates a fresh Checkout Pro payment link for this billing period — the owner pays
@@ -127,4 +171,4 @@ const handleWebhook = asyncHandler(async (req, res) => {
   res.status(200).json({ received: true });
 });
 
-module.exports = { getStatus, startCheckout, handleWebhook, applyPaymentResult };
+module.exports = { getStatus, startCheckout, cancelSubscription, resumeSubscription, handleWebhook, applyPaymentResult };

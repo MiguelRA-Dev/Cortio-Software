@@ -9,3 +9,13 @@ export async function startCheckout() {
   const { data } = await apiClient.post('/billing/checkout')
   return data
 }
+
+export async function cancelSubscription() {
+  const { data } = await apiClient.post('/billing/cancel')
+  return data
+}
+
+export async function resumeSubscription() {
+  const { data } = await apiClient.post('/billing/resume')
+  return data
+}

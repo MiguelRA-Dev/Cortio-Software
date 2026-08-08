@@ -26,6 +26,11 @@ const barbershopSchema = new mongoose.Schema({
   // Guards against double-applying the same payment if the webhook fires more than once
   // for it (MercadoPago's delivery is at-least-once, not exactly-once).
   lastPaymentReference: { type: String },
+  // Owner asked to stop renewing. Since billing is a manual Checkout Pro link each
+  // period (not a recurring mandate), this doesn't cancel anything on MercadoPago's
+  // side — it just means "don't nag me to pay again," and blocks access naturally once
+  // currentPeriodEnd passes via the existing isBlocked() date check.
+  cancelAtPeriodEnd: { type: Boolean, default: false },
 
   // Self-service "delete my barbershop": set together when the owner requests it, and
   // both cleared if they cancel within the grace window. deletionJob purges everything
