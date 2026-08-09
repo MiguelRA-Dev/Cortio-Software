@@ -30,7 +30,7 @@ function TermsPage() {
               acepta como vinculantes los siguientes términos y condiciones (denominados "Términos del servicio" o
               "Términos"), incluidos los términos adicionales y políticas mencionados aquí o disponibles por
               hipervínculo (como nuestra Política de privacidad). Estos Términos se aplican a todos los usuarios de
-              la plataforma, incluyendo dueños de barbería, barberos y clientes que agendan citas.
+              la plataforma, incluyendo dueños de establecimiento, profesionales y clientes que agendan citas.
             </p>
             <p className="mt-2 text-muted">
               Lea estos Términos detenidamente antes de acceder o utilizar la plataforma. Al acceder o utilizar
@@ -120,9 +120,9 @@ function TermsPage() {
           <section>
             <h2 className="text-base font-semibold text-ink">5. El Servicio</h2>
             <p className="mt-2 text-muted">
-              Cortio es una plataforma de software como servicio (SaaS) que permite a barberías gestionar citas,
-              clientes, inventario, ventas, nómina y su suscripción, y que permite a los clientes de esas barberías
-              agendar citas en línea.
+              Cortio es una plataforma de software como servicio (SaaS) que permite a establecimientos gestionar
+              citas, clientes, inventario, ventas, nómina y su suscripción, y que permite a los clientes de esos
+              establecimientos agendar citas en línea.
             </p>
             <p className="mt-2 text-muted">
               Nos reservamos el derecho, pero no estamos obligados, de limitar el acceso a la plataforma a cualquier
@@ -191,8 +191,8 @@ function TermsPage() {
               confidencial, ni de pagar compensación por él.
             </p>
             <p className="mt-2 text-muted">
-              Si la plataforma le permite dejar reseñas sobre una barbería, usted acepta que dichas reseñas serán
-              visibles públicamente en el perfil de esa barbería, y que son responsabilidad exclusiva de quien las
+              Si la plataforma le permite dejar reseñas sobre un establecimiento, usted acepta que dichas reseñas
+              serán visibles públicamente en el perfil de ese establecimiento, y que son responsabilidad exclusiva de quien las
               escribe. Podemos, sin obligación de hacerlo, monitorear o eliminar reseñas que a nuestra entera
               discreción determinemos que son ilegales, ofensivas o difamatorias.
             </p>

@@ -63,7 +63,7 @@ function TeamPage() {
       queryClient.invalidateQueries({ queryKey: ['team'] })
       setModalOpen(false)
     },
-    onError: (err) => setFormError(err.response?.data?.error || 'No pudimos crear el barbero.'),
+    onError: (err) => setFormError(err.response?.data?.error || 'No pudimos crear el profesional.'),
   })
 
   const updateMutation = useMutation({
@@ -182,11 +182,11 @@ function TeamPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">Equipo</h1>
-          <p className="mt-1 text-sm text-muted">{barbers.length} barberos registrados</p>
+          <p className="mt-1 text-sm text-muted">{barbers.length} profesionales registrados</p>
         </div>
         <Button onClick={openCreate}>
           <Plus size={16} />
-          Nuevo barbero
+          Nuevo profesional
         </Button>
       </div>
 
@@ -196,7 +196,7 @@ function TeamPage() {
         ) : isError ? (
           <p className="py-4 text-sm text-danger">No pudimos cargar el equipo. Intenta recargar.</p>
         ) : barbers.length === 0 ? (
-          <p className="py-4 text-sm text-muted">Aún no tienes barberos registrados.</p>
+          <p className="py-4 text-sm text-muted">Aún no tienes profesionales registrados.</p>
         ) : (
           <div className="flex flex-col divide-y divide-border">
             {barbers.map((b) => (
@@ -225,7 +225,7 @@ function TeamPage() {
                 <button
                   type="button"
                   onClick={() => openEdit(b)}
-                  aria-label="Editar barbero"
+                  aria-label="Editar profesional"
                   className="rounded-md p-1.5 text-muted hover:bg-surface-2 hover:text-ink"
                 >
                   <Pencil size={15} />
@@ -239,7 +239,7 @@ function TeamPage() {
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editingId ? 'Editar barbero' : 'Nuevo barbero'}
+        title={editingId ? 'Editar profesional' : 'Nuevo profesional'}
       >
         <form onSubmit={handleSubmit} className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto pr-1">
           {editingId && (
@@ -283,7 +283,7 @@ function TeamPage() {
               {portfolioPhotos.length === 0 ? (
                 <p className="flex items-center gap-2 text-xs text-muted">
                   <ImageIcon size={14} />
-                  Este barbero aún no ha subido fotos.
+                  Este profesional aún no ha subido fotos.
                 </p>
               ) : (
                 <div className="grid grid-cols-4 gap-2">
@@ -349,7 +349,7 @@ function TeamPage() {
           )}
 
           <Button type="submit" disabled={saving} className="mt-2 w-full">
-            {saving ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Agregar barbero'}
+            {saving ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Agregar profesional'}
           </Button>
         </form>
       </Modal>

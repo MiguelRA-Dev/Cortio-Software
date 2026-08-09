@@ -45,7 +45,7 @@ const getStatus = asyncHandler(async (req, res) => {
     'subscriptionStatus trialEndsAt currentPeriodEnd mercadopagoCardBrand deletionRequestedAt scheduledPurgeAt cancelAtPeriodEnd'
   );
   if (!barbershop) {
-    throw new ApiError(404, 'Barbería no encontrada');
+    throw new ApiError(404, 'Establecimiento no encontrado');
   }
 
   const now = new Date();
@@ -86,7 +86,7 @@ const getStatus = asyncHandler(async (req, res) => {
 const cancelSubscription = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findById(req.user.barbershop);
   if (!barbershop) {
-    throw new ApiError(404, 'Barbería no encontrada');
+    throw new ApiError(404, 'Establecimiento no encontrado');
   }
   if (barbershop.subscriptionStatus !== 'active') {
     throw new ApiError(400, 'No tienes una suscripción activa para cancelar');
@@ -101,7 +101,7 @@ const cancelSubscription = asyncHandler(async (req, res) => {
 const resumeSubscription = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findById(req.user.barbershop);
   if (!barbershop) {
-    throw new ApiError(404, 'Barbería no encontrada');
+    throw new ApiError(404, 'Establecimiento no encontrado');
   }
 
   barbershop.cancelAtPeriodEnd = false;
@@ -116,7 +116,7 @@ const resumeSubscription = asyncHandler(async (req, res) => {
 const startCheckout = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findById(req.user.barbershop);
   if (!barbershop) {
-    throw new ApiError(404, 'Barbería no encontrada');
+    throw new ApiError(404, 'Establecimiento no encontrado');
   }
 
   const priceCOP = Number(process.env.SUBSCRIPTION_PRICE_COP);

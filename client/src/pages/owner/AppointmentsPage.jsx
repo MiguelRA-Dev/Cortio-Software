@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, Check, X as XIcon, List, CalendarDays } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, X as XIcon, List, CalendarDays, Ban } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 import StaffCalendarView from '../../components/appointments/StaffCalendarView'
+import AgendaLegend from '../../components/appointments/AgendaLegend'
 import { useAuth } from '../../context/AuthContext'
 import BarberAgendaPage from '../barber/BarberAgendaPage'
 import { listMyAppointments, updateAppointmentStatus } from '../../api/appointments'
+import { listMyTimeBlocks } from '../../api/timeBlocks'
 import { listTeam } from '../../api/barbers'
 import { toDateKey } from '../../lib/dates'
 import { STATUS_VARIANT, getStaffStatusLabel } from '../../lib/appointmentStatus'
@@ -36,6 +38,10 @@ function AppointmentsPage() {
     queryKey: ['appointments'],
     queryFn: () => listMyAppointments(),
   })
+  const { data: timeBlocks = [] } = useQuery({
+    queryKey: ['time-blocks'],
+    queryFn: listMyTimeBlocks,
+  })
   const { data: barbers = [] } = useQuery({ queryKey: ['team'], queryFn: listTeam })
 
   const statusMutation = useMutation({
@@ -54,9 +60,14 @@ function AppointmentsPage() {
     [appointments, selectedKey, statusFilter]
   )
 
+  const dayBlocks = useMemo(
+    () => timeBlocks.filter((b) => toDateKey(new Date(b.startTime)) === selectedKey),
+    [timeBlocks, selectedKey]
+  )
+
   const calendarEvents = useMemo(
-    () =>
-      filtered.map((a) => ({
+    () => [
+      ...filtered.map((a) => ({
         id: a._id,
         resourceId: a.barber?._id,
         customer: a.customer?.name,
@@ -66,7 +77,17 @@ function AppointmentsPage() {
         start: new Date(a.startTime),
         end: new Date(a.endTime),
       })),
-    [filtered]
+      ...dayBlocks.map((b) => ({
+        id: b._id,
+        resourceId: b.barber,
+        isBlock: true,
+        status: 'blocked',
+        reason: b.reason,
+        start: new Date(b.startTime),
+        end: new Date(b.endTime),
+      })),
+    ],
+    [filtered, dayBlocks]
   )
 
   function changeDay(offset) {
@@ -91,33 +112,40 @@ function AppointmentsPage() {
       </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => changeDay(-1)}
-            className="rounded-lg border border-border p-2 text-muted hover:bg-surface-2 hover:text-ink"
-            aria-label="Día anterior"
-          >
-            <ChevronLeft size={16} />
-          </button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-1">
+            <button
+              type="button"
+              onClick={() => changeDay(-1)}
+              className="rounded-md p-1.5 text-muted hover:bg-surface-2 hover:text-ink"
+              aria-label="Día anterior"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <span className="px-2 text-sm font-semibold capitalize text-ink">
+              {selectedDate.toLocaleDateString('es-CO', { weekday: 'long' })}
+            </span>
+            <button
+              type="button"
+              onClick={() => changeDay(1)}
+              className="rounded-md p-1.5 text-muted hover:bg-surface-2 hover:text-ink"
+              aria-label="Día siguiente"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
           <button
             type="button"
             onClick={() => setSelectedDate(new Date())}
-            className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-ink hover:bg-surface-2"
+            className="text-xs font-medium text-muted underline hover:text-ink"
           >
             Hoy
-          </button>
-          <button
-            type="button"
-            onClick={() => changeDay(1)}
-            className="rounded-lg border border-border p-2 text-muted hover:bg-surface-2 hover:text-ink"
-            aria-label="Día siguiente"
-          >
-            <ChevronRight size={16} />
           </button>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          {viewMode === 'calendar' && <AgendaLegend className="hidden lg:flex" />}
+
           <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-surface-2 p-1">
             {STATUS_FILTERS.map((s) => (
               <button
@@ -168,6 +196,9 @@ function AppointmentsPage() {
             resources={barbers.map((b) => ({ id: b._id, name: b.name }))}
             events={calendarEvents}
           />
+          <p className="mt-4 text-center text-xs text-muted">
+            Cada quien ve la agenda de su día. Tú ves la de todos.
+          </p>
         </Card>
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -175,10 +206,26 @@ function AppointmentsPage() {
             const barberAppointments = filtered
               .filter((a) => a.barber?._id === barber._id)
               .sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
+            const barberBlocks = dayBlocks.filter((b) => b.barber === barber._id)
 
             return (
               <Card key={barber._id}>
                 <h3 className="text-sm font-medium text-ink">{barber.name}</h3>
+
+                {barberBlocks.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {barberBlocks.map((b) => (
+                      <span
+                        key={b._id}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-1 text-xs text-muted"
+                      >
+                        <Ban size={11} />
+                        {formatTime(new Date(b.startTime))}–{formatTime(new Date(b.endTime))}
+                        {b.reason ? ` · ${b.reason}` : ''}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 {barberAppointments.length === 0 ? (
                   <p className="mt-4 text-sm text-muted">Sin citas para este día.</p>

@@ -23,7 +23,7 @@ function ProtectedRoute({ children }) {
       logout()
       navigate('/login', {
         replace: true,
-        state: { notice: 'Esta cuenta es de un cliente. Usa el link de tu barbería para agendar una cita.' },
+        state: { notice: 'Esta cuenta es de un cliente. Usa el link de tu establecimiento para agendar una cita.' },
       })
     }
   }, [isCustomer, logout, navigate])

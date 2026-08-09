@@ -291,7 +291,7 @@ function PayrollPage() {
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <Select id="filterBarberId" value={filterBarberId} onChange={(e) => setFilterBarberId(e.target.value)} className="py-2">
-          <option value="">Todos los barberos</option>
+          <option value="">Todos los profesionales</option>
           {barbers.map((b) => (
             <option key={b._id} value={b._id}>
               {b.name}
@@ -393,9 +393,9 @@ function PayrollPage() {
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editingId ? 'Editar liquidación' : 'Generar nómina'}>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <Select id="barberId" name="barberId" label="Barbero" value={form.barberId} onChange={handleChange} required>
+          <Select id="barberId" name="barberId" label="Profesional" value={form.barberId} onChange={handleChange} required>
             <option value="" disabled>
-              Selecciona un barbero
+              Selecciona un profesional
             </option>
             {barbers.map((b) => (
               <option key={b._id} value={b._id}>

@@ -13,6 +13,7 @@ const customerRoutes = require('./customerRoutes');
 const billingRoutes = require('./billingRoutes');
 const portfolioRoutes = require('./portfolioRoutes');
 const reviewRoutes = require('./reviewRoutes');
+const timeBlockRoutes = require('./timeBlockRoutes');
 
 const router = express.Router();
 
@@ -30,5 +31,6 @@ router.use('/expenses', expenseRoutes);
 router.use('/payroll', payrollRoutes);
 router.use('/reports', reportRoutes);
 router.use('/customers', customerRoutes);
+router.use('/time-blocks', timeBlockRoutes);
 
 module.exports = router;

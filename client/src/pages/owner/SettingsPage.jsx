@@ -189,7 +189,7 @@ function SettingsPage() {
             </div>
           </div>
           <div className="mt-4 flex flex-col gap-4">
-            <Input id="name" name="name" label="Nombre de la barbería" value={form.name} onChange={handleChange} required />
+            <Input id="name" name="name" label="Nombre del establecimiento" value={form.name} onChange={handleChange} required />
             <Input id="location" name="location" label="Ubicación (ciudad)" value={form.location} onChange={handleChange} />
             <Input id="address" name="address" label="Dirección" value={form.address} onChange={handleChange} />
             <Input
@@ -305,7 +305,7 @@ function SettingsPage() {
         {barbershop?.deletionRequestedAt ? (
           <div className="mt-4">
             <p className="text-sm text-ink">
-              Esta barbería se eliminará permanentemente el{' '}
+              Este establecimiento se eliminará permanentemente el{' '}
               <span className="font-medium">
                 {new Date(barbershop.scheduledPurgeAt).toLocaleDateString('es-CO', {
                   day: 'numeric',
@@ -328,7 +328,7 @@ function SettingsPage() {
         ) : (
           <div className="mt-4">
             <p className="text-sm text-muted">
-              Elimina tu barbería y todos sus datos de Cortio. Tendrás 15 días para cancelar antes de que se borre
+              Elimina tu establecimiento y todos sus datos de Cortio. Tendrás 15 días para cancelar antes de que se borre
               todo de forma permanente.
             </p>
             <button
@@ -336,7 +336,7 @@ function SettingsPage() {
               onClick={() => setDeleteModalOpen(true)}
               className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg border border-danger/30 bg-danger/10 px-4 py-2.5 text-sm font-medium text-danger transition-colors hover:bg-danger/20"
             >
-              Eliminar mi barbería
+              Eliminar mi establecimiento
             </button>
           </div>
         )}
@@ -348,7 +348,7 @@ function SettingsPage() {
           setDeleteModalOpen(false)
           setDeleteConfirmText('')
         }}
-        title="Eliminar tu barbería"
+        title="Eliminar tu establecimiento"
       >
         <div className="flex flex-col gap-4">
           <p className="text-sm text-muted">

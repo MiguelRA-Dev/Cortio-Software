@@ -36,7 +36,7 @@ async function sendVerificationEmail({ to, name, verifyUrl }) {
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
         <h2>Hola ${name || ''},</h2>
-        <p>Gracias por registrar tu barbería en Cortio. Confirma tu correo para verificar tu cuenta:</p>
+        <p>Gracias por registrar tu establecimiento en Cortio. Confirma tu correo para verificar tu cuenta:</p>
         <p>
           <a href="${verifyUrl}" style="display:inline-block;background:#111;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;">
             Verificar mi correo

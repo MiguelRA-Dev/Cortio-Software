@@ -161,6 +161,15 @@
   font-weight: 600;
 }
 
+@keyframes landing-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+
+.animate-landing-float {
+  animation: landing-float 6s ease-in-out infinite;
+}
+
 .bg-grid {
   background-image:
     linear-gradient(to right, var(--border) 1px, transparent 1px),

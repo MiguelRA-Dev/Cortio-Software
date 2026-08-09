@@ -21,7 +21,7 @@ import { getAvailability, createAppointment, listMyAppointments, cancelMyAppoint
 import { listMyReviews, createReview } from '../../api/reviews'
 import { toDateKey } from '../../lib/dates'
 
-const STEPS = ['Barbero', 'Servicio', 'Horario', 'Confirmar']
+const STEPS = ['Profesional', 'Servicio', 'Horario', 'Confirmar']
 const STATUS_LABEL = { pending: 'Pendiente', confirmed: 'Confirmada', completed: 'Completada', cancelled: 'Cancelada', no_show: 'No asistió' }
 
 function StarPicker({ value, onChange }) {
@@ -520,8 +520,8 @@ function PublicBookingPage() {
       <div className="flex min-h-screen flex-col bg-bg">
         <div className="flex flex-1 items-center justify-center px-4">
           <div className="text-center">
-            <p className="text-sm font-medium text-ink">Esta barbería no se encuentra disponible.</p>
-            <p className="mt-1.5 text-xs text-muted">Verifica el enlace o contacta directamente a la barbería.</p>
+            <p className="text-sm font-medium text-ink">Este establecimiento no se encuentra disponible.</p>
+            <p className="mt-1.5 text-xs text-muted">Verifica el enlace o contacta directamente al establecimiento.</p>
           </div>
         </div>
         <PoweredByCortio />
@@ -613,7 +613,7 @@ function PublicBookingPage() {
           <Card>
             <h2 className="text-base font-semibold text-ink">Mis citas</h2>
             {myAppointmentsHere.length === 0 ? (
-              <p className="mt-4 text-sm text-muted">Aún no tienes citas en esta barbería.</p>
+              <p className="mt-4 text-sm text-muted">Aún no tienes citas en este establecimiento.</p>
             ) : (
               <div className="mt-4 flex flex-col divide-y divide-border">
                 {myAppointmentsHere.map((a) => (
@@ -669,9 +669,9 @@ function PublicBookingPage() {
         <Card className="mt-6">
           {step === 1 && (
             <div>
-              <h2 className="text-base font-semibold text-ink">Elige tu barbero</h2>
+              <h2 className="text-base font-semibold text-ink">Elige tu profesional</h2>
               {barbers.length === 0 ? (
-                <p className="mt-4 text-sm text-muted">Esta barbería aún no tiene barberos disponibles.</p>
+                <p className="mt-4 text-sm text-muted">Este establecimiento aún no tiene profesionales disponibles.</p>
               ) : (
                 <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {barbers.map((b) => (
@@ -691,7 +691,7 @@ function PublicBookingPage() {
           {step === 2 && (
             <div>
               <button type="button" onClick={() => goTo(1)} className="mb-4 flex items-center gap-1 text-sm text-muted hover:text-ink">
-                <ArrowLeft size={14} /> Cambiar barbero
+                <ArrowLeft size={14} /> Cambiar profesional
               </button>
               <h2 className="text-base font-semibold text-ink">Elige un servicio</h2>
               <div className="mt-4 flex flex-col divide-y divide-border">
@@ -779,7 +779,7 @@ function PublicBookingPage() {
 
               <div className="mt-4 rounded-lg border border-border bg-surface-2 p-3.5 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-muted">Barbero</span>
+                  <span className="text-muted">Profesional</span>
                   <span className="font-medium text-ink">{barber?.name}</span>
                 </div>
                 <div className="mt-1.5 flex items-center justify-between">
@@ -866,7 +866,7 @@ function PublicBookingPage() {
         />
       </Modal>
 
-      <Modal open={Boolean(viewingProfile)} onClose={() => setViewingProfile(null)} title="Perfil del barbero">
+      <Modal open={Boolean(viewingProfile)} onClose={() => setViewingProfile(null)} title="Perfil del profesional">
         {viewingProfile && (
           <div>
             <div className="flex items-center gap-4">

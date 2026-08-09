@@ -2,6 +2,7 @@ const Appointment = require('../models/Appointment');
 const Barbershop = require('../models/Barbershop');
 const Service = require('../models/Service');
 const User = require('../models/User');
+const TimeBlock = require('../models/TimeBlock');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { getAvailableSlots } = require('../services/availabilityService');
@@ -11,10 +12,10 @@ const ACTIVE_STATUSES = ['pending', 'confirmed'];
 
 async function resolveBookingContext({ slug, barberId, serviceId }) {
   const barbershop = await Barbershop.findOne({ slug, active: true });
-  if (!barbershop) throw new ApiError(404, 'Barbería no encontrada');
+  if (!barbershop) throw new ApiError(404, 'Establecimiento no encontrado');
 
   const barber = await User.findOne({ _id: barberId, barbershop: barbershop._id, role: 'barber', active: true });
-  if (!barber) throw new ApiError(404, 'Barbero no encontrado');
+  if (!barber) throw new ApiError(404, 'Profesional no encontrado');
 
   const service = await Service.findOne({ _id: serviceId, barbershop: barbershop._id, active: true });
   if (!service) throw new ApiError(404, 'Servicio no encontrado');
@@ -39,17 +40,20 @@ const getAvailability = asyncHandler(async (req, res) => {
   const dayEnd = new Date(dayStart);
   dayEnd.setDate(dayEnd.getDate() + 1);
 
-  const existingAppointments = await Appointment.find({
-    barber: barber._id,
-    status: { $in: ACTIVE_STATUSES },
-    startTime: { $gte: dayStart, $lt: dayEnd }
-  }).select('startTime endTime');
+  const [existingAppointments, blocks] = await Promise.all([
+    Appointment.find({
+      barber: barber._id,
+      status: { $in: ACTIVE_STATUSES },
+      startTime: { $gte: dayStart, $lt: dayEnd }
+    }).select('startTime endTime'),
+    TimeBlock.find({ barber: barber._id, startTime: { $gte: dayStart, $lt: dayEnd } }).select('startTime endTime')
+  ]);
 
   const slots = getAvailableSlots({
     barber,
     date: dayStart,
     durationMinutes: service.durationMinutes,
-    existingAppointments
+    busyRanges: [...existingAppointments, ...blocks]
   });
 
   res.json({ slots });
@@ -74,17 +78,20 @@ const create = asyncHandler(async (req, res) => {
   const dayEnd = new Date(dayStart);
   dayEnd.setDate(dayEnd.getDate() + 1);
 
-  const existingAppointments = await Appointment.find({
-    barber: barber._id,
-    status: { $in: ACTIVE_STATUSES },
-    startTime: { $gte: dayStart, $lt: dayEnd }
-  }).select('startTime endTime');
+  const [existingAppointments, blocks] = await Promise.all([
+    Appointment.find({
+      barber: barber._id,
+      status: { $in: ACTIVE_STATUSES },
+      startTime: { $gte: dayStart, $lt: dayEnd }
+    }).select('startTime endTime'),
+    TimeBlock.find({ barber: barber._id, startTime: { $gte: dayStart, $lt: dayEnd } }).select('startTime endTime')
+  ]);
 
   const availableSlots = getAvailableSlots({
     barber,
     date: dayStart,
     durationMinutes: service.durationMinutes,
-    existingAppointments
+    busyRanges: [...existingAppointments, ...blocks]
   });
 
   if (!availableSlots.includes(start.toISOString())) {
@@ -144,7 +151,7 @@ const updateStatus = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'No tienes permiso para modificar esta cita');
   }
   if (isAssignedBarber && !BARBER_ALLOWED_STATUSES.includes(status)) {
-    throw new ApiError(403, 'Los barberos solo pueden cancelar o marcar citas como no asistió');
+    throw new ApiError(403, 'Los profesionales solo pueden cancelar o marcar citas como no asistió');
   }
 
   appointment.status = status;
@@ -209,7 +216,16 @@ const reschedule = asyncHandler(async (req, res) => {
     endTime: { $gt: newStart }
   });
   if (conflict) {
-    throw new ApiError(409, 'El barbero ya tiene una cita a esa hora');
+    throw new ApiError(409, 'El profesional ya tiene una cita a esa hora');
+  }
+
+  const blockConflict = await TimeBlock.findOne({
+    barber: appointment.barber,
+    startTime: { $lt: newEnd },
+    endTime: { $gt: newStart }
+  });
+  if (blockConflict) {
+    throw new ApiError(409, 'El profesional tiene ese horario bloqueado');
   }
 
   appointment.startTime = newStart;

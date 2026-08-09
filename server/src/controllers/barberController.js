@@ -20,7 +20,7 @@ const listMyTeam = asyncHandler(async (req, res) => {
 const listPublicBarbers = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findOne({ slug: req.params.slug, active: true });
   if (!barbershop) {
-    throw new ApiError(404, 'Barbería no encontrada');
+    throw new ApiError(404, 'Establecimiento no encontrado');
   }
   const barbers = await User.find({ barbershop: barbershop._id, role: 'barber', active: true }).select(PUBLIC_FIELDS);
 
@@ -55,7 +55,7 @@ const ALLOWED_UPDATE_FIELDS = ['name', 'phone', 'avatarUrl', 'paymentScheme', 'c
 const updateBarber = asyncHandler(async (req, res) => {
   const barber = await User.findOne({ _id: req.params.id, barbershop: req.user.barbershop, role: 'barber' });
   if (!barber) {
-    throw new ApiError(404, 'Barbero no encontrado');
+    throw new ApiError(404, 'Profesional no encontrado');
   }
 
   for (const field of ALLOWED_UPDATE_FIELDS) {
@@ -77,7 +77,7 @@ const uploadAvatar = asyncHandler(async (req, res) => {
 
   const barber = await User.findOne({ _id: req.params.id, barbershop: req.user.barbershop, role: 'barber' });
   if (!barber) {
-    throw new ApiError(404, 'Barbero no encontrado');
+    throw new ApiError(404, 'Profesional no encontrado');
   }
   if (!req.file) {
     throw new ApiError(400, 'No se subió ningún archivo');

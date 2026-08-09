@@ -46,7 +46,7 @@
 
 .rbc-timeslot-group {
   border-color: var(--border);
-  min-height: 56px;
+  min-height: 84px;
 }
 
 .rbc-time-slot {
@@ -85,9 +85,9 @@
   background-color: var(--surface-2);
   border: 1px solid var(--border);
   color: var(--ink);
-  border-radius: 6px;
+  border-radius: 8px;
   box-shadow: none;
-  padding: 2px 6px;
+  padding: 5px 8px;
 }
 
 .rbc-event:focus {

@@ -1,9 +1,11 @@
+import { Lock } from 'lucide-react'
 import { Calendar } from 'react-big-calendar'
 import withDragAndDropRaw from 'react-big-calendar/lib/addons/dragAndDrop'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css'
 import '../../styles/calendar-overrides.css'
 import { localizer } from '../../lib/calendarLocalizer'
+import Badge from '../ui/Badge'
 
 // The addon's CJS build sometimes reaches us double-wrapped ({ default: fn }) depending
 // on the bundler's interop, instead of the bare function — unwrap defensively either way.
@@ -11,32 +13,114 @@ const withDragAndDrop = withDragAndDropRaw.default || withDragAndDropRaw
 const DragAndDropCalendar = withDragAndDrop(Calendar)
 const RESCHEDULABLE_STATUSES = ['pending', 'confirmed']
 
-const STATUS_STYLE = {
-  completed: { borderLeft: '3px solid var(--success)', backgroundColor: 'color-mix(in oklab, var(--success) 14%, var(--surface-2))' },
-  confirmed: { borderLeft: '3px solid var(--ink)', backgroundColor: 'var(--surface-2)' },
-  pending: { borderLeft: '3px dashed var(--muted)', backgroundColor: 'var(--surface-2)' },
-  cancelled: {
-    borderLeft: '3px solid var(--danger)',
-    backgroundColor: 'color-mix(in oklab, var(--danger) 10%, var(--surface-2))',
-    opacity: 0.6,
-    textDecoration: 'line-through',
-  },
-  no_show: {
-    borderLeft: '3px solid var(--danger)',
-    backgroundColor: 'color-mix(in oklab, var(--danger) 10%, var(--surface-2))',
-    opacity: 0.6,
-    textDecoration: 'line-through',
-  },
+// One consistent color for every professional's avatar — the reference design uses a
+// single accent, not a color-per-barber scheme (that would compete with the
+// color-per-service coding of the events themselves).
+const RESOURCE_ACCENT = '#3b82f6'
+
+// Appointments are colored by service, not by status — lets an owner scan the day and
+// see "a lot of Corte + tinte today" at a glance. Each hue is only ever used at ~18%
+// strength, mixed into the theme's own --surface-2 via color-mix — so the tint is
+// automatically pale in light mode and automatically muted in dark mode, the same
+// technique the app already uses for --success/--danger, instead of a fixed hex fill
+// that reads fine on white and garish on black.
+const SERVICE_HUES = [
+  '#3b82f6', // blue
+  '#10b981', // emerald
+  '#f43f5e', // rose
+  '#d97706', // amber
+  '#8b5cf6', // violet
+  '#0891b2', // cyan
+  '#ec4899', // pink
+  '#6366f1', // indigo
+]
+
+function serviceHue(str) {
+  if (!str) return SERVICE_HUES[0]
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  return SERVICE_HUES[Math.abs(hash) % SERVICE_HUES.length]
+}
+
+function formatEventTime(date) {
+  return date.toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit', hour12: true }).toUpperCase()
+}
+
+function eventPropGetter(event) {
+  if (event.isBlock) {
+    return {
+      style: {
+        backgroundColor: 'var(--surface-2)',
+        backgroundImage:
+          'repeating-linear-gradient(45deg, color-mix(in oklab, var(--muted) 16%, transparent) 0 6px, transparent 6px 12px)',
+        border: '1px dashed var(--border)',
+        color: 'var(--muted)',
+      },
+    }
+  }
+
+  if (event.status === 'cancelled' || event.status === 'no_show') {
+    return {
+      style: {
+        backgroundColor: 'var(--surface-2)',
+        color: 'var(--muted)',
+        border: '1px solid var(--border)',
+        textDecoration: 'line-through',
+        opacity: 0.7,
+      },
+    }
+  }
+
+  const hue = serviceHue(event.service)
+  const style = {
+    backgroundColor: `color-mix(in oklab, ${hue} 18%, var(--surface-2))`,
+    border: 'none',
+    borderLeft: `3px solid ${hue}`,
+    color: 'var(--ink)',
+  }
+  if (event.status === 'pending') {
+    style.borderLeft = `3px dashed ${hue}`
+  }
+  return { style }
 }
 
 function EventContent({ event }) {
+  if (event.isBlock) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-1 overflow-hidden text-center">
+        <Lock size={13} />
+        {event.reason && <p className="truncate px-1 text-[10px] leading-tight">{event.reason}</p>}
+      </div>
+    )
+  }
+
   const cancelledByCustomer = event.status === 'cancelled' && event.cancelledBy === 'customer'
   return (
     <div className="overflow-hidden text-xs leading-tight">
-      <p className="truncate font-medium">{event.customer}</p>
-      <p className="truncate text-[11px] opacity-75">
+      <p className="truncate font-semibold">{event.customer}</p>
+      <p className="truncate text-[11px] opacity-90">
         {cancelledByCustomer ? 'Cancelada por el cliente' : event.service}
       </p>
+      <p className="truncate text-[10px] opacity-75">
+        {formatEventTime(event.start)} – {formatEventTime(event.end)}
+      </p>
+    </div>
+  )
+}
+
+function ResourceHeader({ resource }) {
+  return (
+    <div className="flex flex-col items-center gap-1.5 py-2">
+      <div
+        className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold text-white"
+        style={{ backgroundColor: RESOURCE_ACCENT }}
+      >
+        {resource.name?.[0]?.toUpperCase()}
+      </div>
+      <p className="text-sm font-medium text-ink">{resource.name}</p>
+      <Badge variant="muted">Profesional</Badge>
     </div>
   )
 }
@@ -45,7 +129,7 @@ function StaffCalendarView({ date, onNavigate, resources, events, onSelectEvent,
   const CalendarComponent = onEventDrop ? DragAndDropCalendar : Calendar
 
   return (
-    <div style={{ height: 640 }}>
+    <div style={{ height: 760 }}>
       <CalendarComponent
         localizer={localizer}
         culture="es"
@@ -64,8 +148,8 @@ function StaffCalendarView({ date, onNavigate, resources, events, onSelectEvent,
         max={new Date(1970, 0, 1, 20, 0)}
         step={30}
         timeslots={2}
-        eventPropGetter={(event) => ({ style: STATUS_STYLE[event.status] || {} })}
-        components={{ event: EventContent }}
+        eventPropGetter={eventPropGetter}
+        components={{ event: EventContent, resourceHeader: ResourceHeader }}
         onSelectEvent={onSelectEvent}
         onEventDrop={onEventDrop}
         draggableAccessor={(event) => RESCHEDULABLE_STATUSES.includes(event.status)}

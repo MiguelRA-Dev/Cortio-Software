@@ -9,7 +9,7 @@ const PAYMENT_METHODS = ['cash', 'card', 'transfer', 'other'];
 
 async function getBarberOrThrow(barberId, barbershopId) {
   const barber = await User.findOne({ _id: barberId, barbershop: barbershopId, role: 'barber' });
-  if (!barber) throw new ApiError(404, 'Barbero no encontrado');
+  if (!barber) throw new ApiError(404, 'Profesional no encontrado');
   return barber;
 }
 
@@ -52,7 +52,7 @@ async function assertNoOverlap({ barbershop, barberId, start, end, excludeId }) 
   if (excludeId) filter._id = { $ne: excludeId };
   const conflict = await PayrollEntry.findOne(filter);
   if (conflict) {
-    throw new ApiError(409, 'Este barbero ya tiene una liquidación que cubre parte de ese período');
+    throw new ApiError(409, 'Este profesional ya tiene una liquidación que cubre parte de ese período');
   }
 }
 

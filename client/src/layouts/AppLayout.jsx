@@ -106,7 +106,7 @@ function SidebarContent({ onNavigate }) {
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-medium text-ink">{user.name}</p>
-            <p className="truncate text-xs capitalize text-muted">{user.role === 'owner' ? 'Dueño' : 'Barbero'}</p>
+            <p className="truncate text-xs capitalize text-muted">{user.role === 'owner' ? 'Dueño' : 'Profesional'}</p>
           </div>
         </div>
         {user.role === 'owner' && (
@@ -142,7 +142,7 @@ function SubscriptionBanner() {
     })
     return (
       <div className="border-b border-danger/30 bg-danger/10 px-4 py-2 text-center text-sm text-danger">
-        Esta barbería se eliminará permanentemente el {purgeDate}.{' '}
+        Este establecimiento se eliminará permanentemente el {purgeDate}.{' '}
         {user.role === 'owner' ? (
           <NavLink to="/app/settings" className="font-medium underline">
             Cancelar eliminación

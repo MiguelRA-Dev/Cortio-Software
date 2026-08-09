@@ -28,7 +28,7 @@ const listMine = asyncHandler(async (req, res) => {
 const listPublic = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findOne({ slug: req.params.slug, active: true });
   if (!barbershop) {
-    throw new ApiError(404, 'Barbería no encontrada');
+    throw new ApiError(404, 'Establecimiento no encontrado');
   }
   const services = await Service.find({ barbershop: barbershop._id, active: true });
   res.json(services);

@@ -24,7 +24,7 @@ const requireActiveSubscription = asyncHandler(async (req, res, next) => {
     'subscriptionStatus trialEndsAt currentPeriodEnd'
   );
   if (!barbershop) {
-    throw new ApiError(404, 'Barbería no encontrada');
+    throw new ApiError(404, 'Establecimiento no encontrado');
   }
 
   if (isBlocked(barbershop, new Date())) {

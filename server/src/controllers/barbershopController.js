@@ -7,7 +7,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const getBySlug = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findOne({ slug: req.params.slug, active: true });
   if (!barbershop) {
-    throw new ApiError(404, 'Barbería no encontrada');
+    throw new ApiError(404, 'Establecimiento no encontrado');
   }
   res.json(barbershop);
 });
@@ -15,7 +15,7 @@ const getBySlug = asyncHandler(async (req, res) => {
 const getMe = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findById(req.user.barbershop);
   if (!barbershop) {
-    throw new ApiError(404, 'Barbería no encontrada');
+    throw new ApiError(404, 'Establecimiento no encontrado');
   }
   res.json(barbershop);
 });
@@ -35,7 +35,7 @@ const updateMe = asyncHandler(async (req, res) => {
     runValidators: true
   });
   if (!barbershop) {
-    throw new ApiError(404, 'Barbería no encontrada');
+    throw new ApiError(404, 'Establecimiento no encontrado');
   }
   res.json(barbershop);
 });
@@ -54,7 +54,7 @@ function restoreSubscriptionStatus(barbershop, now) {
 const requestDeletion = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findById(req.user.barbershop);
   if (!barbershop) {
-    throw new ApiError(404, 'Barbería no encontrada');
+    throw new ApiError(404, 'Establecimiento no encontrado');
   }
 
   const now = new Date();
@@ -77,10 +77,10 @@ const requestDeletion = asyncHandler(async (req, res) => {
 const cancelDeletion = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findById(req.user.barbershop);
   if (!barbershop) {
-    throw new ApiError(404, 'Barbería no encontrada');
+    throw new ApiError(404, 'Establecimiento no encontrado');
   }
   if (!barbershop.deletionRequestedAt) {
-    throw new ApiError(409, 'No hay ninguna eliminación pendiente para esta barbería');
+    throw new ApiError(409, 'No hay ninguna eliminación pendiente para este establecimiento');
   }
 
   const now = new Date();
@@ -95,7 +95,7 @@ const cancelDeletion = asyncHandler(async (req, res) => {
 const uploadLogo = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findById(req.user.barbershop);
   if (!barbershop) {
-    throw new ApiError(404, 'Barbería no encontrada');
+    throw new ApiError(404, 'Establecimiento no encontrado');
   }
   if (!req.file) {
     throw new ApiError(400, 'No se subió ningún archivo');

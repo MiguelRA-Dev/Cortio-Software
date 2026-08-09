@@ -10,7 +10,10 @@ function combineDateAndMinutes(date, minutes) {
   return result;
 }
 
-function getAvailableSlots({ barber, date, durationMinutes, existingAppointments }) {
+// busyRanges holds anything the caller found for that day that occupies the barber's
+// time — booked appointments AND self-declared TimeBlocks alike, both just need a
+// startTime/endTime to be checked for overlap the same way.
+function getAvailableSlots({ barber, date, durationMinutes, busyRanges }) {
   const dayOfWeek = date.getDay();
   const dateKey = date.toISOString().slice(0, 10);
 
@@ -41,8 +44,8 @@ function getAvailableSlots({ barber, date, durationMinutes, existingAppointments
 
       if (slotStartDate < now) continue;
 
-      const overlaps = existingAppointments.some(
-        (apt) => slotStartDate < apt.endTime && slotEndDate > apt.startTime
+      const overlaps = busyRanges.some(
+        (range) => slotStartDate < range.endTime && slotEndDate > range.startTime
       );
       if (overlaps) continue;
 

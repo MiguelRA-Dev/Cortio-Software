@@ -181,9 +181,9 @@ function RegisterPage() {
 
   return (
     <AuthLayout>
-      <h1 className="text-2xl font-semibold text-ink">Registra tu barbería</h1>
+      <h1 className="text-2xl font-semibold text-ink">Registra tu establecimiento</h1>
       <p className="mt-1.5 text-sm text-muted">
-        ¿Eres cliente? Agenda desde el link de tu barbería, no necesitas registrarte aquí.
+        ¿Eres cliente? Agenda desde el link de tu establecimiento, no necesitas registrarte aquí.
       </p>
 
       <div className="mt-6">
@@ -304,7 +304,7 @@ function RegisterPage() {
               id="barbershopName"
               name="barbershopName"
               label="Nombre del negocio"
-              placeholder="Barbería El Corte"
+              placeholder="Estudio Bella"
               value={form.barbershopName}
               onChange={handleChange}
               required
@@ -313,7 +313,7 @@ function RegisterPage() {
               id="slug"
               name="slug"
               label="Link personalizado"
-              placeholder="mi-barberia"
+              placeholder="estudio-bella"
               value={form.slug}
               onChange={handleSlugChange}
               required
@@ -399,7 +399,7 @@ function RegisterPage() {
             </Button>
           )}
           <Button type="submit" disabled={loading || (isLastStep && !acceptedTerms)} className="flex-1">
-            {isLastStep ? (loading ? 'Creando cuenta...' : 'Registrar mi barbería') : 'Continuar'}
+            {isLastStep ? (loading ? 'Creando cuenta...' : 'Registrar mi establecimiento') : 'Continuar'}
           </Button>
         </div>
       </form>

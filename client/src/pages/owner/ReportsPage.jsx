@@ -108,7 +108,7 @@ function ReportsPage() {
         </Card>
 
         <Card>
-          <h3 className="text-sm font-medium text-muted">Por barbero</h3>
+          <h3 className="text-sm font-medium text-muted">Por profesional</h3>
           <div className="mt-4 flex flex-col divide-y divide-border">
             {byBarber.map((b) => (
               <div key={b.barberId} className="py-3.5 first:pt-0 last:pb-0">

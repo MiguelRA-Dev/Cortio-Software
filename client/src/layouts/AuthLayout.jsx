@@ -14,7 +14,7 @@ function AuthLayout({ children }) {
         </div>
         <div className="relative max-w-md">
           <h2 className="text-4xl font-semibold leading-tight tracking-tight text-ink">
-            La plataforma hecha para barberías que quieren crecer.
+            La plataforma hecha para negocios de belleza que quieren crecer.
           </h2>
           <p className="mt-4 text-muted">
             Agenda, pagos, nómina e inventario en un solo lugar.

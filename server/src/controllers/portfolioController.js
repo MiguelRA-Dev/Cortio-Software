@@ -42,7 +42,7 @@ const listByBarber = asyncHandler(async (req, res) => {
 const listPublic = asyncHandler(async (req, res) => {
   const barbershop = await Barbershop.findOne({ slug: req.params.slug, active: true });
   if (!barbershop) {
-    throw new ApiError(404, 'Barbería no encontrada');
+    throw new ApiError(404, 'Establecimiento no encontrado');
   }
 
   const filter = { barbershop: barbershop._id };
