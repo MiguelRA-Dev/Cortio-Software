@@ -30,6 +30,21 @@ const updateMe = asyncHandler(async (req, res) => {
     }
   }
 
+  // Same normalization/validation as registration — changing the slug breaks whatever
+  // link the owner already handed out, so it gets its own explicit check here instead
+  // of just letting the schema's unique index reject it with a raw Mongo error.
+  if (req.body.slug !== undefined) {
+    const normalizedSlug = req.body.slug.toLowerCase().trim().replace(/\s+/g, '-');
+    if (!/^[a-z0-9-]+$/.test(normalizedSlug)) {
+      throw new ApiError(400, 'El slug solo puede tener minúsculas, números y guiones');
+    }
+    const existing = await Barbershop.findOne({ slug: normalizedSlug, _id: { $ne: req.user.barbershop } });
+    if (existing) {
+      throw new ApiError(409, 'Este slug ya está en uso, elige otro');
+    }
+    updates.slug = normalizedSlug;
+  }
+
   const barbershop = await Barbershop.findByIdAndUpdate(req.user.barbershop, updates, {
     new: true,
     runValidators: true

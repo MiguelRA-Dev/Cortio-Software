@@ -29,13 +29,17 @@ function wrapMpError(err) {
 // app's target customers overwhelmingly carry debit, not credit, so billing is instead
 // "pay this month's link" rather than fully automatic. Checkout Pro accepts debit,
 // credit, PSE, and cash networks, and — unlike /preapproval — actually works reliably.
-async function createPaymentPreference({ barbershopId, payerEmail, amountCOP, reason, backUrl }) {
+// `cycle` rides along inside external_reference (barbershopId, or barbershopId:annual)
+// instead of any local "pending checkout" state — stateless and immune to the owner
+// starting two checkouts (e.g. monthly then annual) before finishing either one; the
+// webhook always applies whatever cycle the actually-paid preference was created with.
+async function createPaymentPreference({ barbershopId, cycle, payerEmail, amountCOP, reason, backUrl }) {
   try {
     return await new Preference(getClient()).create({
       body: {
         items: [{ title: reason, quantity: 1, unit_price: amountCOP, currency_id: 'COP' }],
         payer: { email: payerEmail },
-        external_reference: barbershopId,
+        external_reference: cycle === 'annual' ? `${barbershopId}:annual` : barbershopId,
         back_urls: { success: backUrl, pending: backUrl, failure: backUrl }
       }
     });

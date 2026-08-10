@@ -1,4 +1,5 @@
 const Appointment = require('../models/Appointment');
+const Sale = require('../models/Sale');
 
 async function getCustomers(barbershopId) {
   const appointments = await Appointment.find({ barbershop: barbershopId, status: { $ne: 'cancelled' } })
@@ -48,6 +49,47 @@ async function getCustomers(barbershopId) {
       if (appt.service) {
         entry.serviceCounts[appt.service.name] = (entry.serviceCounts[appt.service.name] || 0) + 1;
       }
+    }
+  }
+
+  // Walk-in sales with no appointment (e.g. a manually-added customer's first ring-up)
+  // are the only trace those customers leave — without this pass they'd never appear
+  // here until/unless they eventually also book a real appointment.
+  const walkInSales = await Sale.find({ barbershop: barbershopId, appointment: null, customer: { $ne: null } })
+    .populate('customer', 'name email phone')
+    .populate('barber', 'name')
+    .sort({ createdAt: 1 });
+
+  for (const sale of walkInSales) {
+    if (!sale.customer) continue;
+    const key = sale.customer._id.toString();
+
+    if (!map.has(key)) {
+      map.set(key, {
+        id: sale.customer._id,
+        name: sale.customer.name,
+        email: sale.customer.email,
+        phone: sale.customer.phone,
+        totalVisits: 0,
+        totalSpent: 0,
+        firstVisit: null,
+        lastVisit: null,
+        firstActivity: sale.createdAt,
+        lastActivity: sale.createdAt,
+        barberCounts: {},
+        serviceCounts: {},
+      });
+    }
+
+    const entry = map.get(key);
+    if (sale.createdAt < entry.firstActivity) entry.firstActivity = sale.createdAt;
+    if (sale.createdAt > entry.lastActivity) entry.lastActivity = sale.createdAt;
+    entry.totalVisits += 1;
+    entry.totalSpent += sale.total;
+    if (!entry.firstVisit || sale.createdAt < entry.firstVisit) entry.firstVisit = sale.createdAt;
+    if (!entry.lastVisit || sale.createdAt > entry.lastVisit) entry.lastVisit = sale.createdAt;
+    if (sale.barber) {
+      entry.barberCounts[sale.barber.name] = (entry.barberCounts[sale.barber.name] || 0) + 1;
     }
   }
 

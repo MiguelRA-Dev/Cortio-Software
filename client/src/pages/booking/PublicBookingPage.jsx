@@ -374,6 +374,17 @@ function PublicBookingPage() {
     queryFn: () => listPublicServices(slug),
     retry: false,
   })
+  // Only ever built from services that exist, so a category with zero active services
+  // simply never appears — no separate "does this category have anything" check needed.
+  const servicesByCategory = useMemo(() => {
+    const groups = new Map()
+    for (const s of services) {
+      const category = s.category?.trim() || 'Otros'
+      if (!groups.has(category)) groups.set(category, [])
+      groups.get(category).push(s)
+    }
+    return Array.from(groups.entries())
+  }, [services])
   const { data: portfolioPhotos = [] } = useQuery({
     queryKey: ['public-portfolio', slug],
     queryFn: () => listPublicPortfolio(slug),
@@ -694,22 +705,29 @@ function PublicBookingPage() {
                 <ArrowLeft size={14} /> Cambiar profesional
               </button>
               <h2 className="text-base font-semibold text-ink">Elige un servicio</h2>
-              <div className="mt-4 flex flex-col divide-y divide-border">
-                {services.map((s) => (
-                  <button
-                    key={s._id}
-                    type="button"
-                    onClick={() => selectService(s)}
-                    className="flex items-center justify-between gap-4 py-3.5 text-left first:pt-0 last:pb-0 hover:opacity-70"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-ink">{s.name}</p>
-                      <p className="flex items-center gap-1 text-xs text-muted">
-                        <Clock size={11} /> {s.durationMinutes} min
-                      </p>
+              <div className="mt-4 flex flex-col gap-5">
+                {servicesByCategory.map(([category, categoryServices]) => (
+                  <div key={category}>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted">{category}</p>
+                    <div className="mt-1.5 flex flex-col divide-y divide-border">
+                      {categoryServices.map((s) => (
+                        <button
+                          key={s._id}
+                          type="button"
+                          onClick={() => selectService(s)}
+                          className="flex items-center justify-between gap-4 py-3.5 text-left first:pt-0 last:pb-0 hover:opacity-70"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-ink">{s.name}</p>
+                            <p className="flex items-center gap-1 text-xs text-muted">
+                              <Clock size={11} /> {s.durationMinutes} min
+                            </p>
+                          </div>
+                          <span className="shrink-0 text-sm font-medium tabular-nums text-ink">{formatCOP(s.price)}</span>
+                        </button>
+                      ))}
                     </div>
-                    <span className="shrink-0 text-sm font-medium tabular-nums text-ink">{formatCOP(s.price)}</span>
-                  </button>
+                  </div>
                 ))}
               </div>
             </div>

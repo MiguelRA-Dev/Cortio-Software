@@ -15,7 +15,10 @@ const scheduleExceptionSchema = new mongoose.Schema({
 
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
-  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  // Not required or unique on its own. Required for every role except customer — a
+  // customer added manually by staff (an older walk-in who won't self-register) has no
+  // email or login access at all. See the partial compound index below.
+  email: { type: String, lowercase: true, trim: true },
   passwordHash: { type: String, required: true },
   phone: { type: String, trim: true },
   role: { type: String, enum: ['owner', 'barber', 'customer'], required: true },
@@ -44,5 +47,15 @@ const userSchema = new mongoose.Schema({
 
 // Sparse so barbers/customers (who never set this) don't collide on a shared null value.
 userSchema.index({ identificationNumber: 1 }, { unique: true, sparse: true });
+
+// One account per (email, role) — the same email can be a customer AND separately an
+// owner or a barber, but not two owner accounts (or two barber, or two customer).
+// Partial (not sparse) on purpose: a plain sparse index here would still enforce
+// uniqueness on documents missing `email`, because `role` is always present — a partial
+// filter on email actually existing is what excludes email-less walk-in customers.
+userSchema.index(
+  { email: 1, role: 1 },
+  { unique: true, partialFilterExpression: { email: { $exists: true } } }
+);
 
 module.exports = mongoose.model('User', userSchema);

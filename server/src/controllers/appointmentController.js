@@ -7,6 +7,9 @@ const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { getAvailableSlots } = require('../services/availabilityService');
 const parseDateOnly = require('../utils/parseDateOnly');
+const { bogotaMidnightOf } = require('../utils/bogotaTime');
+
+const ONE_DAY_MS = 24 * 60 * 60000;
 
 const ACTIVE_STATUSES = ['pending', 'confirmed'];
 
@@ -37,8 +40,7 @@ const getAvailability = asyncHandler(async (req, res) => {
   if (Number.isNaN(dayStart.getTime())) {
     throw new ApiError(400, 'Fecha inválida, se espera YYYY-MM-DD');
   }
-  const dayEnd = new Date(dayStart);
-  dayEnd.setDate(dayEnd.getDate() + 1);
+  const dayEnd = new Date(dayStart.getTime() + ONE_DAY_MS);
 
   const [existingAppointments, blocks] = await Promise.all([
     Appointment.find({
@@ -73,10 +75,8 @@ const create = asyncHandler(async (req, res) => {
   }
   const end = new Date(start.getTime() + service.durationMinutes * 60000);
 
-  const dayStart = new Date(start);
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(dayStart);
-  dayEnd.setDate(dayEnd.getDate() + 1);
+  const dayStart = bogotaMidnightOf(start);
+  const dayEnd = new Date(dayStart.getTime() + ONE_DAY_MS);
 
   const [existingAppointments, blocks] = await Promise.all([
     Appointment.find({

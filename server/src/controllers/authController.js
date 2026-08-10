@@ -127,9 +127,9 @@ const registerBarbershop = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'El slug solo puede tener minúsculas, números y guiones');
   }
 
-  const existingEmail = await User.findOne({ email });
+  const existingEmail = await User.findOne({ email, role: 'owner' });
   if (existingEmail) {
-    throw new ApiError(409, 'Este correo ya está en uso');
+    throw new ApiError(409, 'Ya existe una cuenta de dueño con este correo');
   }
   const existingId = await User.findOne({ identificationNumber });
   if (existingId) {
@@ -209,9 +209,9 @@ const registerBarber = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'paymentScheme debe ser commission, fixed o mixed');
   }
 
-  const existingEmail = await User.findOne({ email: email.toLowerCase() });
+  const existingEmail = await User.findOne({ email: email.toLowerCase(), role: 'barber' });
   if (existingEmail) {
-    throw new ApiError(409, 'Este correo ya está en uso');
+    throw new ApiError(409, 'Ya existe un profesional con este correo');
   }
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -269,9 +269,9 @@ const registerCustomer = asyncHandler(async (req, res) => {
     passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
   }
 
-  const existingEmail = await User.findOne({ email });
+  const existingEmail = await User.findOne({ email, role: 'customer' });
   if (existingEmail) {
-    throw new ApiError(409, 'Este correo ya está en uso');
+    throw new ApiError(409, 'Ya existe un cliente con este correo');
   }
 
   const customer = await User.create({ name, email, passwordHash, phone, role: 'customer', emailVerified });
@@ -280,24 +280,31 @@ const registerCustomer = asyncHandler(async (req, res) => {
   res.status(201).json({ token, user: sanitizeUser(customer) });
 });
 
+// Email is only unique per (email, role) now, so the same address can front more than
+// one account (e.g. a barber who also has a customer account, or who later opens their
+// own shop as an owner). A password only ever matches its own account's hash, so trying
+// it against every candidate resolves the ambiguity without any change on the client.
 const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     throw new ApiError(400, 'email y password son requeridos');
   }
 
-  const user = await User.findOne({ email: email.toLowerCase() });
-  if (!user || !user.active) {
+  const candidates = await User.find({ email: email.toLowerCase(), active: true });
+
+  let matched = null;
+  for (const candidate of candidates) {
+    if (await bcrypt.compare(password, candidate.passwordHash)) {
+      matched = candidate;
+      break;
+    }
+  }
+  if (!matched) {
     throw new ApiError(401, 'Credenciales inválidas');
   }
 
-  const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) {
-    throw new ApiError(401, 'Credenciales inválidas');
-  }
-
-  const token = signToken(user);
-  res.json({ token, user: sanitizeUser(user) });
+  const token = signToken(matched);
+  res.json({ token, user: sanitizeUser(matched) });
 });
 
 const forgotPassword = asyncHandler(async (req, res) => {
@@ -383,11 +390,18 @@ const googleLogin = asyncHandler(async (req, res) => {
     throw new ApiError(401, 'El correo de tu cuenta de Google no está verificado');
   }
 
-  const user = await User.findOne({ email: payload.email.toLowerCase() });
-  if (!user || !user.active) {
+  const matches = await User.find({ email: payload.email.toLowerCase(), active: true });
+  if (matches.length === 0) {
     throw new ApiError(404, 'No existe una cuenta con este correo. Regístrate primero.');
   }
+  // Google doesn't give us a password to disambiguate with, unlike the regular login —
+  // if this email fronts more than one account (e.g. owner + customer), fall back to
+  // asking for a password instead of guessing which one they meant.
+  if (matches.length > 1) {
+    throw new ApiError(409, 'Tienes varias cuentas con este correo. Inicia sesión con tu contraseña para elegir cuál.');
+  }
 
+  const user = matches[0];
   const token = signToken(user);
   res.json({ token, user: sanitizeUser(user) });
 });
@@ -411,7 +425,7 @@ const updateMe = asyncHandler(async (req, res) => {
     const normalizedEmail = email.toLowerCase().trim();
     if (!normalizedEmail) throw new ApiError(400, 'email no puede estar vacío');
     if (normalizedEmail !== req.user.email) {
-      const existing = await User.findOne({ email: normalizedEmail });
+      const existing = await User.findOne({ email: normalizedEmail, role: req.user.role });
       if (existing) throw new ApiError(409, 'Este correo ya está en uso');
       // A changed email is unverified until it's confirmed again.
       updates.emailVerified = false;

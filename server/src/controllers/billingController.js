@@ -15,7 +15,7 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 // anymore, since a Checkout Pro payment already carries our external_reference from the
 // moment we create it). Guards against double-applying the same payment if MercadoPago
 // redelivers the notification (its webhook delivery is at-least-once, not exactly-once).
-async function applyPaymentResult({ barbershop, payment }) {
+async function applyPaymentResult({ barbershop, payment, cycle = 'monthly' }) {
   if (payment.status === 'approved') {
     if (barbershop.lastPaymentReference === String(payment.id) && barbershop.subscriptionStatus === 'active') {
       return;
@@ -23,7 +23,11 @@ async function applyPaymentResult({ barbershop, payment }) {
     const now = new Date();
     const base = barbershop.currentPeriodEnd && barbershop.currentPeriodEnd > now ? barbershop.currentPeriodEnd : now;
     const next = new Date(base);
-    next.setMonth(next.getMonth() + 1);
+    if (cycle === 'annual') {
+      next.setDate(next.getDate() + 365);
+    } else {
+      next.setMonth(next.getMonth() + 1);
+    }
 
     barbershop.subscriptionStatus = 'active';
     barbershop.currentPeriodEnd = next;
@@ -75,7 +79,8 @@ const getStatus = asyncHandler(async (req, res) => {
     scheduledPurgeAt: barbershop.scheduledPurgeAt,
     cardBrand: barbershop.mercadopagoCardBrand || null,
     cancelAtPeriodEnd: barbershop.cancelAtPeriodEnd,
-    priceCOP: Number(process.env.SUBSCRIPTION_PRICE_COP || 0)
+    priceCOP: Number(process.env.SUBSCRIPTION_PRICE_COP || 0),
+    priceAnnualCOP: Number(process.env.SUBSCRIPTION_PRICE_ANNUAL_COP || 0)
   });
 });
 
@@ -119,16 +124,22 @@ const startCheckout = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Establecimiento no encontrado');
   }
 
-  const priceCOP = Number(process.env.SUBSCRIPTION_PRICE_COP);
+  const cycle = req.body?.cycle === 'annual' ? 'annual' : 'monthly';
+  const envVar = cycle === 'annual' ? 'SUBSCRIPTION_PRICE_ANNUAL_COP' : 'SUBSCRIPTION_PRICE_COP';
+  const priceCOP = Number(process.env[envVar]);
   if (!priceCOP) {
-    throw new ApiError(500, 'SUBSCRIPTION_PRICE_COP no está configurado en el servidor');
+    throw new ApiError(500, `${envVar} no está configurado en el servidor`);
   }
 
   const preference = await createPaymentPreference({
     barbershopId: String(barbershop._id),
+    cycle,
     payerEmail: req.user.email,
     amountCOP: priceCOP,
-    reason: `Cortio Software — Suscripción mensual (${barbershop.name})`,
+    reason:
+      cycle === 'annual'
+        ? `Cortio Software — Suscripción anual (${barbershop.name})`
+        : `Cortio Software — Suscripción mensual (${barbershop.name})`,
     backUrl: `${process.env.APP_URL}/app/billing`
   });
 
@@ -161,9 +172,10 @@ const handleWebhook = asyncHandler(async (req, res) => {
   if (topic === 'payment' && dataId) {
     const payment = await getPayment(dataId);
     if (payment.external_reference) {
-      const barbershop = await Barbershop.findById(payment.external_reference);
+      const [barbershopId, cycle] = String(payment.external_reference).split(':');
+      const barbershop = await Barbershop.findById(barbershopId);
       if (barbershop) {
-        await applyPaymentResult({ barbershop, payment });
+        await applyPaymentResult({ barbershop, payment, cycle: cycle === 'annual' ? 'annual' : 'monthly' });
       }
     }
   }

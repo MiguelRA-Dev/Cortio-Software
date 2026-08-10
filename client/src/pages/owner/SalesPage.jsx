@@ -1,16 +1,19 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Minus, Trash2, ShoppingCart, Check } from 'lucide-react'
+import { Plus, Minus, Trash2, ShoppingCart, Check, UserPlus } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Select from '../../components/ui/Select'
 import Badge from '../../components/ui/Badge'
+import Modal from '../../components/ui/Modal'
+import Input from '../../components/ui/Input'
 import { formatCOP } from '../../lib/format'
 import { listServices } from '../../api/services'
 import { listProducts } from '../../api/products'
 import { listTeam } from '../../api/barbers'
 import { listSales, createSale } from '../../api/sales'
 import { listMyAppointments } from '../../api/appointments'
+import { listCustomers, createCustomer } from '../../api/customers'
 import { useAuth } from '../../context/AuthContext'
 
 const PAYMENT_METHODS = [
@@ -54,15 +57,41 @@ function SalesPage() {
   const [cart, setCart] = useState([])
   const [barberId, setBarberId] = useState(() => (isBarber ? user._id : ''))
   const [appointmentId, setAppointmentId] = useState('')
+  const [customerId, setCustomerId] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const [newCustomerModalOpen, setNewCustomerModalOpen] = useState(false)
+  const [newCustomerForm, setNewCustomerForm] = useState({ name: '', phone: '' })
+  const [newCustomerError, setNewCustomerError] = useState('')
+  // Customers created just now, before the ['customers'] query has refetched — merged
+  // into the picker so the walk-in is selectable immediately, not after a reload.
+  const [justAddedCustomers, setJustAddedCustomers] = useState([])
 
   const { data: services = [] } = useQuery({ queryKey: ['services'], queryFn: listServices })
   const { data: products = [] } = useQuery({ queryKey: ['products'], queryFn: listProducts })
   const { data: barbers = [] } = useQuery({ queryKey: ['team'], queryFn: listTeam })
   const { data: sales = [] } = useQuery({ queryKey: ['sales', 'today'], queryFn: () => listSales(todayRange()) })
   const { data: appointments = [] } = useQuery({ queryKey: ['appointments'], queryFn: () => listMyAppointments() })
+  const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: listCustomers })
+
+  const customerOptions = useMemo(() => {
+    const known = new Set(customers.map((c) => c.id))
+    return [...customers, ...justAddedCustomers.filter((c) => !known.has(c.id))]
+  }, [customers, justAddedCustomers])
+
+  const createCustomerMutation = useMutation({
+    mutationFn: createCustomer,
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] })
+      setJustAddedCustomers((prev) => [...prev, { id: created._id, name: created.name, phone: created.phone }])
+      setCustomerId(created._id)
+      setNewCustomerModalOpen(false)
+      setNewCustomerForm({ name: '', phone: '' })
+      setNewCustomerError('')
+    },
+    onError: (err) => setNewCustomerError(err.response?.data?.error || 'No pudimos crear el cliente.'),
+  })
 
   const activeServices = services.filter((s) => s.active)
   const activeProducts = products.filter((p) => p.active)
@@ -95,6 +124,7 @@ function SalesPage() {
       setCart([])
       setBarberId(isBarber ? user._id : '')
       setAppointmentId('')
+      setCustomerId('')
       setError('')
       setSuccessMessage(`Venta registrada por ${formatCOP(sale.total)}`)
       setTimeout(() => setSuccessMessage(''), 3000)
@@ -128,10 +158,20 @@ function SalesPage() {
   function handleAppointmentChange(e) {
     const id = e.target.value
     setAppointmentId(id)
+    // The appointment already carries its own customer — a manually picked one here
+    // would be redundant, and could disagree with who actually booked it.
+    setCustomerId('')
     const appt = linkableAppointments.find((a) => a._id === id)
     if (appt?.barber?._id) {
       setBarberId(appt.barber._id)
     }
+  }
+
+  function handleNewCustomerSubmit(e) {
+    e.preventDefault()
+    if (!newCustomerForm.name.trim()) return
+    setNewCustomerError('')
+    createCustomerMutation.mutate(newCustomerForm)
   }
 
   function handleCheckout() {
@@ -140,6 +180,7 @@ function SalesPage() {
     checkoutMutation.mutate({
       barberId: barberId || undefined,
       appointmentId: appointmentId || undefined,
+      customerId: appointmentId ? undefined : customerId || undefined,
       paymentMethod,
       items: cart.map((i) => ({ itemType: i.itemType, itemId: i.itemId, quantity: i.quantity })),
     })
@@ -293,6 +334,28 @@ function SalesPage() {
                 ))}
               </Select>
 
+              {!appointmentId && (
+                <div>
+                  <Select id="customer" label="Cliente (opcional)" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+                    <option value="">Sin cliente</option>
+                    {customerOptions.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                        {c.phone ? ` · ${c.phone}` : ''}
+                      </option>
+                    ))}
+                  </Select>
+                  <button
+                    type="button"
+                    onClick={() => setNewCustomerModalOpen(true)}
+                    className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-muted hover:text-ink"
+                  >
+                    <UserPlus size={13} />
+                    Nuevo cliente
+                  </button>
+                </div>
+              )}
+
               <Select
                 id="barber"
                 label="Atendido por"
@@ -345,6 +408,41 @@ function SalesPage() {
           </Card>
         </div>
       </div>
+
+      <Modal
+        open={newCustomerModalOpen}
+        onClose={() => {
+          setNewCustomerModalOpen(false)
+          setNewCustomerForm({ name: '', phone: '' })
+          setNewCustomerError('')
+        }}
+        title="Nuevo cliente"
+      >
+        <form onSubmit={handleNewCustomerSubmit} className="flex flex-col gap-4">
+          <p className="text-sm text-muted">
+            Para clientes que no quieren registrarse en la app — solo queda guardado su nombre y teléfono.
+          </p>
+          <Input
+            id="newCustomerName"
+            label="Nombre"
+            value={newCustomerForm.name}
+            onChange={(e) => setNewCustomerForm({ ...newCustomerForm, name: e.target.value })}
+            required
+          />
+          <Input
+            id="newCustomerPhone"
+            label="Teléfono (opcional)"
+            value={newCustomerForm.phone}
+            onChange={(e) => setNewCustomerForm({ ...newCustomerForm, phone: e.target.value })}
+          />
+          {newCustomerError && (
+            <p className="rounded-lg border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-sm text-danger">{newCustomerError}</p>
+          )}
+          <Button type="submit" disabled={createCustomerMutation.isPending} className="w-full">
+            {createCustomerMutation.isPending ? 'Guardando...' : 'Guardar cliente'}
+          </Button>
+        </form>
+      </Modal>
     </div>
   )
 }

@@ -16,6 +16,7 @@ function BillingPage() {
   const { data: status, isLoading } = useQuery({ queryKey: ['billing-status'], queryFn: getBillingStatus })
   const [error, setError] = useState('')
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
+  const [billingCycle, setBillingCycle] = useState('monthly')
 
   const checkoutMutation = useMutation({
     mutationFn: startCheckout,
@@ -117,6 +118,47 @@ function BillingPage() {
             El pago se hace directo en la página de MercadoPago — tu tarjeta nunca pasa por nuestros servidores.
           </p>
 
+          {status.priceAnnualCOP > 0 && (
+            <div className="mt-4 inline-flex gap-1 rounded-lg border border-border bg-surface-2 p-1">
+              <button
+                type="button"
+                onClick={() => setBillingCycle('monthly')}
+                className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                  billingCycle === 'monthly' ? 'bg-accent text-accent-ink' : 'text-muted hover:text-ink'
+                }`}
+              >
+                Mensual
+              </button>
+              <button
+                type="button"
+                onClick={() => setBillingCycle('annual')}
+                className={`flex items-center gap-2 rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                  billingCycle === 'annual' ? 'bg-accent text-accent-ink' : 'text-muted hover:text-ink'
+                }`}
+              >
+                Anual
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                    billingCycle === 'annual' ? 'bg-accent-ink/15 text-accent-ink' : 'bg-success/10 text-success'
+                  }`}
+                >
+                  Ahorra 2 meses
+                </span>
+              </button>
+            </div>
+          )}
+
+          <p className="mt-4 text-2xl font-semibold tracking-tight text-ink">
+            {formatCOP(billingCycle === 'annual' ? status.priceAnnualCOP : status.priceCOP)}
+            <span className="text-sm font-normal text-muted">{billingCycle === 'annual' ? ' / año' : ' / mes'}</span>
+          </p>
+          {billingCycle === 'annual' && status.priceAnnualCOP > 0 && (
+            <p className="text-xs text-muted">
+              Equivale a {formatCOP(Math.round(status.priceAnnualCOP / 12))}/mes — tu acceso queda licenciado por 365
+              días desde el momento del pago.
+            </p>
+          )}
+
           <p className="mt-3 flex items-center gap-2 text-xs text-muted">
             <ShieldCheck size={14} />
             Pago seguro procesado por MercadoPago
@@ -130,7 +172,7 @@ function BillingPage() {
             type="button"
             onClick={() => {
               setError('')
-              checkoutMutation.mutate()
+              checkoutMutation.mutate(billingCycle)
             }}
             disabled={checkoutMutation.isPending}
             className="mt-4 flex w-full items-center justify-center gap-2"

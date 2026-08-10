@@ -32,6 +32,10 @@ function SettingsPage() {
   const [copied, setCopied] = useState(false)
   const [saved, setSaved] = useState(false)
 
+  const [slugInput, setSlugInput] = useState('')
+  const [slugError, setSlugError] = useState('')
+  const [slugSaved, setSlugSaved] = useState(false)
+
   const [accountForm, setAccountForm] = useState({ name: user.name, email: user.email })
   const [accountError, setAccountError] = useState('')
   const [accountSaved, setAccountSaved] = useState(false)
@@ -49,6 +53,7 @@ function SettingsPage() {
         phone: barbershop.phone || '',
       })
       setBusinessHours(barbershop.businessHours || [])
+      setSlugInput(barbershop.slug)
     }
   }, [barbershop])
 
@@ -69,6 +74,22 @@ function SettingsPage() {
       setTimeout(() => setSaved(false), 2500)
     },
   })
+
+  const slugMutation = useMutation({
+    mutationFn: (slug) => updateMyBarbershop({ slug }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['barbershop'] })
+      setSlugError('')
+      setSlugSaved(true)
+      setTimeout(() => setSlugSaved(false), 2500)
+    },
+    onError: (err) => setSlugError(err.response?.data?.error || 'No pudimos cambiar el link.'),
+  })
+
+  function handleSlugSave() {
+    setSlugError('')
+    slugMutation.mutate(slugInput)
+  }
 
   const accountMutation = useMutation({
     mutationFn: updateMe,
@@ -207,8 +228,24 @@ function SettingsPage() {
           <h3 className="text-sm font-medium text-muted">Link de agendamiento</h3>
           <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex-1">
-              <Input id="slug" label="Slug" value={barbershop?.slug || ''} readOnly />
-              <p className="mt-1 text-xs text-muted">El link no se puede cambiar por ahora.</p>
+              <Input id="slug" label="Slug" value={slugInput} onChange={(e) => setSlugInput(e.target.value)} />
+              <p className="mt-1 text-xs text-muted">
+                Cambiar el link hace que el anterior deje de funcionar — comparte el nuevo con tus clientes.
+              </p>
+              {slugInput !== barbershop?.slug && (
+                <div className="mt-2 flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleSlugSave}
+                    disabled={slugMutation.isPending || !slugInput.trim()}
+                  >
+                    {slugMutation.isPending ? 'Guardando...' : 'Guardar link'}
+                  </Button>
+                  {slugSaved && <span className="text-sm text-success">Guardado</span>}
+                </div>
+              )}
+              {slugError && <p className="mt-2 text-xs text-danger">{slugError}</p>}
               <div className="mt-3 flex items-center gap-2 rounded-lg border border-border bg-surface-2 px-3.5 py-2.5">
                 <span className="min-w-0 flex-1 truncate text-sm text-muted">{bookingUrl}</span>
                 <button

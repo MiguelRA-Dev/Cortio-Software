@@ -5,8 +5,8 @@ export async function getBillingStatus() {
   return data
 }
 
-export async function startCheckout() {
-  const { data } = await apiClient.post('/billing/checkout')
+export async function startCheckout(cycle = 'monthly') {
+  const { data } = await apiClient.post('/billing/checkout', { cycle })
   return data
 }
 

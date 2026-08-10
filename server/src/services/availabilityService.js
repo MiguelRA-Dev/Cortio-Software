@@ -1,24 +1,27 @@
+const { bogotaDateParts, bogotaDateKey } = require('../utils/bogotaTime');
+
 function timeStringToMinutes(timeStr) {
   const [h, m] = timeStr.split(':').map(Number);
   return h * 60 + m;
 }
 
-function combineDateAndMinutes(date, minutes) {
-  const result = new Date(date);
-  result.setHours(0, 0, 0, 0);
-  result.setMinutes(minutes);
-  return result;
+// `bogotaMidnight` must already be Bogotá midnight (see bogotaTime.js) — from there,
+// adding plain minutes as milliseconds is timezone-agnostic and always correct, unlike
+// the previous version's setHours/setMinutes calls (which used the server process's
+// own local timezone, not Colombia's).
+function combineDateAndMinutes(bogotaMidnight, minutes) {
+  return new Date(bogotaMidnight.getTime() + minutes * 60000);
 }
 
 // busyRanges holds anything the caller found for that day that occupies the barber's
 // time — booked appointments AND self-declared TimeBlocks alike, both just need a
 // startTime/endTime to be checked for overlap the same way.
 function getAvailableSlots({ barber, date, durationMinutes, busyRanges }) {
-  const dayOfWeek = date.getDay();
-  const dateKey = date.toISOString().slice(0, 10);
+  const { dayOfWeek } = bogotaDateParts(date);
+  const dateKey = bogotaDateKey(date);
 
   const exception = (barber.scheduleExceptions || []).find(
-    (ex) => new Date(ex.date).toISOString().slice(0, 10) === dateKey
+    (ex) => bogotaDateKey(new Date(ex.date)) === dateKey
   );
 
   let ranges;

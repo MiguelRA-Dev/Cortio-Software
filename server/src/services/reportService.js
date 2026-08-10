@@ -3,6 +3,7 @@ const Expense = require('../models/Expense');
 const PayrollEntry = require('../models/PayrollEntry');
 const Appointment = require('../models/Appointment');
 const User = require('../models/User');
+const { bogotaDateParts, bogotaDateKey } = require('../utils/bogotaTime');
 
 function dateRangeFilter(from, to) {
   const filter = {};
@@ -80,10 +81,10 @@ async function getByBarber(barbershopId, from, to) {
 
     let availableMinutes = 0;
     for (const day of days) {
-      const dayOfWeek = day.getDay();
-      const dateKey = day.toISOString().slice(0, 10);
+      const { dayOfWeek } = bogotaDateParts(day);
+      const dateKey = bogotaDateKey(day);
       const exception = (barber.scheduleExceptions || []).find(
-        (ex) => new Date(ex.date).toISOString().slice(0, 10) === dateKey
+        (ex) => bogotaDateKey(new Date(ex.date)) === dateKey
       );
       if (exception) {
         if (!exception.available) continue;
