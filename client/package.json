@@ -24,7 +24,6 @@
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
-    "@rolldown/binding-win32-x64-msvc": "^1.2.1",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.4",
