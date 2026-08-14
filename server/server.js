@@ -10,6 +10,7 @@ const connectDB = require('./src/config/db');
 const apiRoutes = require('./src/routes');
 const { notFound, errorHandler } = require('./src/middleware/errorHandler');
 const { runDeletionJob } = require('./src/jobs/deletionJob');
+const { runReminderJob } = require('./src/jobs/reminderJob');
 const ApiError = require('./src/utils/ApiError');
 
 const app = express();
@@ -113,6 +114,12 @@ connectDB()
     // period has elapsed.
     cron.schedule('0 7 * * *', () => {
       runDeletionJob().catch((err) => console.error('[deletionJob] Unexpected failure:', err));
+    });
+
+    // WhatsApp reminder — checks every 5 minutes for appointments starting within the
+    // next ~65 minutes (see reminderJob.js for the exact window logic).
+    cron.schedule('*/5 * * * *', () => {
+      runReminderJob().catch((err) => console.error('[reminderJob] Unexpected failure:', err));
     });
   })
   .catch((err) => {

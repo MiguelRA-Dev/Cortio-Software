@@ -17,7 +17,11 @@ const appointmentSchema = new mongoose.Schema({
 
   // Only meaningful when status is 'cancelled' — lets the owner/barber tell a
   // customer-initiated cancellation apart from one they made themselves.
-  cancelledBy: { type: String, enum: ['owner', 'barber', 'customer'] }
+  cancelledBy: { type: String, enum: ['owner', 'barber', 'customer'] },
+
+  // Set once the pre-appointment WhatsApp reminder goes out, so the reminder cron
+  // (reminderJob.js) never sends it twice for the same appointment.
+  reminderSentAt: { type: Date }
 }, { timestamps: true });
 
 appointmentSchema.index({ barber: 1, startTime: 1 });

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import QRCode from 'qrcode'
-import { Copy, Check, Camera, Store, ShieldCheck, ShieldAlert, TriangleAlert } from 'lucide-react'
+import { Copy, Check, Camera, Store, ShieldCheck, ShieldAlert, TriangleAlert, MessageCircle } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
@@ -20,6 +20,7 @@ import { updateMe, resendVerification } from '../../api/auth'
 import { resolveAssetUrl } from '../../lib/assets'
 
 const BOOKING_BASE_URL = window.location.origin + '/b'
+const SUPPORT_WHATSAPP_NUMBER = '573118205548'
 
 function SettingsPage() {
   const { user, updateUser } = useAuth()
@@ -332,6 +333,20 @@ function SettingsPage() {
           {accountSaved && <span className="text-sm text-success">Cambios guardados</span>}
         </div>
       </form>
+
+      <Card className="mt-4">
+        <h3 className="text-sm font-medium text-muted">Soporte técnico</h3>
+        <p className="mt-2 text-sm text-muted">¿Tienes una duda o problema con tu cuenta? Escríbenos directo por WhatsApp.</p>
+        <a
+          href={`https://wa.me/${SUPPORT_WHATSAPP_NUMBER}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg bg-[#25D366] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:opacity-90"
+        >
+          <MessageCircle size={16} />
+          Contactar soporte por WhatsApp
+        </a>
+      </Card>
 
       <Card className="mt-4 border-danger/30">
         <div className="flex items-center gap-2">

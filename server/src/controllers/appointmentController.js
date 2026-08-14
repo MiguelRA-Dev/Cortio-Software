@@ -8,6 +8,20 @@ const asyncHandler = require('../utils/asyncHandler');
 const { getAvailableSlots } = require('../services/availabilityService');
 const parseDateOnly = require('../utils/parseDateOnly');
 const { bogotaMidnightOf } = require('../utils/bogotaTime');
+const {
+  notifyAppointmentCreated,
+  notifyAppointmentCancelled,
+  notifyAppointmentRescheduled
+} = require('../services/whatsappService');
+
+// Fetches just the fields the WhatsApp templates need, without disturbing the raw
+// ObjectId fields callers already used for authorization checks above.
+async function loadNotificationContext(appointmentId) {
+  return Appointment.findById(appointmentId)
+    .populate('barber', 'phone')
+    .populate('customer', 'name')
+    .populate('service', 'name');
+}
 
 const ONE_DAY_MS = 24 * 60 * 60000;
 
@@ -109,6 +123,8 @@ const create = asyncHandler(async (req, res) => {
     priceAtBooking: service.price
   });
 
+  await notifyAppointmentCreated({ barber, customer: req.user, service, startTime: start });
+
   res.status(201).json(appointment);
 });
 
@@ -157,6 +173,17 @@ const updateStatus = asyncHandler(async (req, res) => {
   appointment.status = status;
   appointment.cancelledBy = status === 'cancelled' ? req.user.role : undefined;
   await appointment.save();
+
+  if (status === 'cancelled') {
+    const ctx = await loadNotificationContext(appointment._id);
+    await notifyAppointmentCancelled({
+      barber: ctx.barber,
+      customer: ctx.customer,
+      service: ctx.service,
+      startTime: ctx.startTime
+    });
+  }
+
   res.json(appointment);
 });
 
@@ -174,6 +201,15 @@ const cancelMine = asyncHandler(async (req, res) => {
   appointment.status = 'cancelled';
   appointment.cancelledBy = 'customer';
   await appointment.save();
+
+  const ctx = await loadNotificationContext(appointment._id);
+  await notifyAppointmentCancelled({
+    barber: ctx.barber,
+    customer: ctx.customer,
+    service: ctx.service,
+    startTime: ctx.startTime
+  });
+
   res.json(appointment);
 });
 
@@ -230,7 +266,19 @@ const reschedule = asyncHandler(async (req, res) => {
 
   appointment.startTime = newStart;
   appointment.endTime = newEnd;
+  // New time means the reminder window has to be recomputed — otherwise a reminder
+  // already sent for the old time would suppress the one due for the new time.
+  appointment.reminderSentAt = undefined;
   await appointment.save();
+
+  const ctx = await loadNotificationContext(appointment._id);
+  await notifyAppointmentRescheduled({
+    barber: ctx.barber,
+    customer: ctx.customer,
+    service: ctx.service,
+    startTime: ctx.startTime
+  });
+
   res.json(appointment);
 });
 
