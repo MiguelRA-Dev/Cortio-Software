@@ -9,7 +9,11 @@ const authLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Demasiados intentos. Espera unos minutos y vuelve a intentarlo.' }
+  message: { error: 'Demasiados intentos. Espera unos minutos y vuelve a intentarlo.' },
+  // Vitest sets NODE_ENV=test automatically — the integration suite makes far more than
+  // 10 auth requests per file against a shared in-memory store, which has nothing to do
+  // with what those tests are actually checking.
+  skip: () => process.env.NODE_ENV === 'test'
 });
 
 module.exports = { authLimiter };

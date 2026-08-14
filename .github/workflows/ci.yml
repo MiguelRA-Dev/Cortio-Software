@@ -1,0 +1,76 @@
+name: CI/CD
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install server dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Run server tests
+        working-directory: server
+        run: npm test
+
+      - name: Install client dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Run client tests
+        working-directory: client
+        run: npm test
+
+  # Only runs on a direct push to master, and only if the test job above passed —
+  # every push to master deploys automatically, with the test suite as the only gate.
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Non-secret build-time config for the frontend (see client/.env.production.example)
+      # — VITE_API_URL is just "/api" (same-origin) and the Google Client ID is the public
+      # OAuth audience, not a credential. Gitignored locally, so it's written fresh here.
+      - name: Write client production env
+        run: |
+          cat > client/.env.production << 'EOF'
+          VITE_API_URL=/api
+          VITE_GOOGLE_CLIENT_ID=280426251701-9j7erj9nluonaenjh0tmb185v6ncgeaq.apps.googleusercontent.com
+          EOF
+
+      - name: Build client
+        working-directory: client
+        run: |
+          npm ci
+          npm run build
+
+      - name: Copy client build into server/public
+        run: |
+          rm -rf server/public
+          cp -r client/dist server/public
+
+      - name: Install server production dependencies
+        working-directory: server
+        run: npm ci --omit=dev
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: cortiosoftware
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: server

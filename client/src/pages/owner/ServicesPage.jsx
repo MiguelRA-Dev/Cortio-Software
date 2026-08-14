@@ -18,7 +18,7 @@ const EMPTY_FORM = { name: '', category: '', description: '', durationMinutes: '
 // 3, so a grid stays roughly square instead of one long column or a lopsided last row.
 // `max` caps it — categories get up to 4 (the outer grid), services inside a category
 // card get up to 2 (that card is already narrower once categories share the row).
-function gridColumnsFor(count, max = 4) {
+export function gridColumnsFor(count, max = 4) {
   if (count <= 1) return 1
   return Math.min(max, Math.max(2, Math.ceil(count / 2)))
 }
