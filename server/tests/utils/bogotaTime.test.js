@@ -12,7 +12,7 @@ import {
 describe('bogotaTime', () => {
   it('bogotaMidnightFromDateString returns 05:00 UTC for a Bogotá calendar date', () => {
     const midnight = bogotaMidnightFromDateString('2026-08-12');
-    expect(midnight.toISOString()).toBe('THIS ASSERTION IS DELIBERATELY BROKEN TO TEST THE CI GATE');
+    expect(midnight.toISOString()).toBe('2026-08-12T05:00:00.000Z');
   });
 
   it('bogotaDateParts reads the correct Bogotá day right at the midnight boundary', () => {
