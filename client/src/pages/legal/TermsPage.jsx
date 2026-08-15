@@ -321,8 +321,7 @@ function TermsPage() {
             <h2 className="text-base font-semibold text-ink">18. Ley aplicable</h2>
             <p className="mt-2 text-muted">
               Los presentes Términos y cualquier acuerdo por separado mediante el cual le proporcionemos Servicios se
-              regirán e interpretarán de acuerdo con las leyes de Colombia, con domicilio en Calle 151#109A-50,
-              Bogotá D.C.
+              regirán e interpretarán de acuerdo con las leyes de Colombia.
             </p>
           </section>
 
@@ -339,11 +338,8 @@ function TermsPage() {
           <section>
             <h2 className="text-base font-semibold text-ink">20. Información de contacto</h2>
             <p className="mt-2 text-muted">
-              Las preguntas sobre estos Términos del servicio se deben enviar a{' '}
-              <a href="mailto:angel4pride@gmail.com" className="text-ink underline underline-offset-2">
-                angel4pride@gmail.com
-              </a>
-              .
+              Las preguntas sobre estos Términos del servicio pueden enviarse a través de los canales de soporte
+              disponibles dentro de la plataforma.
             </p>
           </section>
         </div>
