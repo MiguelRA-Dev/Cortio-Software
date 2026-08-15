@@ -6,6 +6,9 @@ const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 
 const create = asyncHandler(async (req, res) => {
+  if (req.user.role === 'owner' && !req.user.attendsClients) {
+    throw new ApiError(403, 'Activa "Tú también atiendes clientes" en Equipo antes de subir fotos de portafolio');
+  }
   if (!req.file) {
     throw new ApiError(400, 'No se subió ningún archivo');
   }

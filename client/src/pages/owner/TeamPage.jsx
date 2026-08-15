@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Camera, Trash2, Image as ImageIcon } from 'lucide-react'
+import { Plus, Pencil, Camera, Trash2, Image as ImageIcon, UserRound } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Modal from '../../components/ui/Modal'
@@ -11,7 +11,7 @@ import WeeklyScheduleEditor from '../../components/team/WeeklyScheduleEditor'
 import { formatCOP } from '../../lib/format'
 import { resolveAssetUrl } from '../../lib/assets'
 import { listTeam, createBarber, updateBarber, uploadBarberAvatar } from '../../api/barbers'
-import { listBarberPortfolio, deletePortfolioPhoto } from '../../api/portfolio'
+import { listBarberPortfolio, listMyPortfolio, createPortfolioPhoto, deletePortfolioPhoto } from '../../api/portfolio'
 import { updateMe } from '../../api/auth'
 import { useAuth } from '../../context/AuthContext'
 
@@ -55,6 +55,10 @@ function OwnerAvailabilityCard() {
   const queryClient = useQueryClient()
   const [schedule, setSchedule] = useState(user.schedule || [])
   const [saved, setSaved] = useState(false)
+  const [avatarError, setAvatarError] = useState('')
+  const [photoError, setPhotoError] = useState('')
+  const avatarInputRef = useRef(null)
+  const photoInputRef = useRef(null)
 
   const toggleMutation = useMutation({
     mutationFn: (attendsClients) => updateMe({ attendsClients }),
@@ -73,6 +77,47 @@ function OwnerAvailabilityCard() {
     },
   })
 
+  const avatarMutation = useMutation({
+    mutationFn: (file) => uploadBarberAvatar(user._id, file),
+    onSuccess: (updated) => {
+      setAvatarError('')
+      updateUser({ ...user, avatarUrl: updated.avatarUrl })
+    },
+    onError: (err) => setAvatarError(err.response?.data?.error || 'No pudimos subir la foto.'),
+  })
+
+  const { data: photos = [] } = useQuery({
+    queryKey: ['portfolio', 'mine'],
+    queryFn: listMyPortfolio,
+    enabled: Boolean(user.attendsClients),
+  })
+
+  const uploadPhotoMutation = useMutation({
+    mutationFn: (file) => createPortfolioPhoto({ file }),
+    onSuccess: () => {
+      setPhotoError('')
+      queryClient.invalidateQueries({ queryKey: ['portfolio', 'mine'] })
+    },
+    onError: (err) => setPhotoError(err.response?.data?.error || 'No pudimos subir la foto.'),
+  })
+
+  const deletePhotoMutation = useMutation({
+    mutationFn: deletePortfolioPhoto,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['portfolio', 'mine'] }),
+  })
+
+  function handleAvatarPick(e) {
+    const file = e.target.files?.[0]
+    if (file) avatarMutation.mutate(file)
+    e.target.value = ''
+  }
+
+  function handlePhotoPick(e) {
+    const file = e.target.files?.[0]
+    if (file) uploadPhotoMutation.mutate(file)
+    e.target.value = ''
+  }
+
   return (
     <Card className="mt-6">
       <div className="flex items-center justify-between gap-4">
@@ -84,19 +129,98 @@ function OwnerAvailabilityCard() {
       </div>
 
       {user.attendsClients && (
-        <div className="mt-4 border-t border-border pt-4">
-          <p className="mb-2 text-sm font-medium text-muted">Tu horario semanal</p>
-          <WeeklyScheduleEditor value={schedule} onChange={setSchedule} />
-          <div className="mt-3 flex items-center gap-3">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => scheduleMutation.mutate(schedule)}
-              disabled={scheduleMutation.isPending}
-            >
-              {scheduleMutation.isPending ? 'Guardando...' : 'Guardar horario'}
-            </Button>
-            {saved && <span className="text-sm text-success">Guardado</span>}
+        <div className="mt-4 flex flex-col gap-4 border-t border-border pt-4">
+          <div>
+            <p className="mb-2 text-sm font-medium text-muted">Tu horario semanal</p>
+            <WeeklyScheduleEditor value={schedule} onChange={setSchedule} />
+            <div className="mt-3 flex items-center gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => scheduleMutation.mutate(schedule)}
+                disabled={scheduleMutation.isPending}
+              >
+                {scheduleMutation.isPending ? 'Guardando...' : 'Guardar horario'}
+              </Button>
+              {saved && <span className="text-sm text-success">Guardado</span>}
+            </div>
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <p className="mb-2 text-sm font-medium text-muted">Tu foto de perfil</p>
+            <div className="flex items-center gap-4">
+              {user.avatarUrl ? (
+                <img src={resolveAssetUrl(user.avatarUrl)} alt="" className="h-16 w-16 shrink-0 rounded-full object-cover" />
+              ) : (
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-surface-2 text-muted">
+                  <UserRound size={24} />
+                </div>
+              )}
+              <div>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={handleAvatarPick}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={avatarMutation.isPending}
+                  onClick={() => avatarInputRef.current?.click()}
+                >
+                  <Camera size={14} />
+                  {avatarMutation.isPending ? 'Subiendo...' : 'Cambiar foto'}
+                </Button>
+                {avatarError && <p className="mt-1.5 text-xs text-danger">{avatarError}</p>}
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm font-medium text-muted">Tu portafolio de trabajos</p>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handlePhotoPick}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={uploadPhotoMutation.isPending}
+                onClick={() => photoInputRef.current?.click()}
+              >
+                <Camera size={14} />
+                {uploadPhotoMutation.isPending ? 'Subiendo...' : 'Agregar foto'}
+              </Button>
+            </div>
+            {photoError && <p className="mt-1.5 text-xs text-danger">{photoError}</p>}
+            {photos.length === 0 ? (
+              <p className="mt-3 flex items-center gap-2 text-xs text-muted">
+                <ImageIcon size={14} />
+                Aún no has subido fotos de tus trabajos.
+              </p>
+            ) : (
+              <div className="mt-3 grid grid-cols-4 gap-2">
+                {photos.map((p) => (
+                  <div key={p._id} className="group relative aspect-square overflow-hidden rounded-lg bg-surface-2">
+                    <img src={resolveAssetUrl(p.imageUrl)} alt="" className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => deletePhotoMutation.mutate(p._id)}
+                      aria-label="Eliminar foto"
+                      className="absolute right-1 top-1 rounded-md bg-bg/80 p-1 text-muted backdrop-blur transition-opacity hover:text-danger sm:opacity-0 sm:group-hover:opacity-100"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

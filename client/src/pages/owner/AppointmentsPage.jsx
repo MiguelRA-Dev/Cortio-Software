@@ -42,7 +42,13 @@ function AppointmentsPage() {
     queryKey: ['time-blocks'],
     queryFn: listMyTimeBlocks,
   })
-  const { data: barbers = [] } = useQuery({ queryKey: ['team'], queryFn: listTeam })
+  const { data: teamBarbers = [] } = useQuery({ queryKey: ['team'], queryFn: listTeam })
+  // listTeam only returns role: 'barber' accounts — the owner has their own bookable
+  // toggle (User.attendsClients, set in Equipo) and needs a column/card here too when on.
+  const barbers = useMemo(
+    () => (user.attendsClients ? [{ _id: user._id, name: user.name }, ...teamBarbers] : teamBarbers),
+    [teamBarbers, user]
+  )
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }) => updateAppointmentStatus(id, status),

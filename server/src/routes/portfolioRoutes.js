@@ -12,7 +12,7 @@ router.get(
   '/mine',
   requireAuth,
   requireActiveSubscription,
-  requireRole('barber'),
+  requireRole('barber', 'owner'),
   portfolioController.listMine
 );
 router.get(
@@ -26,7 +26,7 @@ router.post(
   '/',
   requireAuth,
   requireActiveSubscription,
-  requireRole('barber'),
+  requireRole('barber', 'owner'),
   uploadPhoto.single('photo'),
   portfolioController.create
 );

@@ -84,7 +84,11 @@ const uploadAvatar = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Solo puedes subir tu propia foto');
   }
 
-  const barber = await User.findOne({ _id: req.params.id, barbershop: req.user.barbershop, role: 'barber' });
+  const barber = await User.findOne({
+    _id: req.params.id,
+    barbershop: req.user.barbershop,
+    $or: [{ role: 'barber' }, { role: 'owner', attendsClients: true }]
+  });
   if (!barber) {
     throw new ApiError(404, 'Profesional no encontrado');
   }
