@@ -1,24 +1,8 @@
-import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
-
-const SCRIPT_ID = 'usercentrics-ppg'
-const SCRIPT_SRC = 'https://policygenerator.usercentrics.eu/api/privacy-policy'
-const PRIVACY_POLICY_ID = 'eb3ceb6f-0887-4ab0-99a8-fdc475be0692'
+import PRIVACY_POLICY_HTML from './privacyPolicyContent'
 
 function PrivacyPage() {
-  const containerRef = useRef(null)
-
-  useEffect(() => {
-    if (document.getElementById(SCRIPT_ID)) return
-    const script = document.createElement('script')
-    script.id = SCRIPT_ID
-    script.src = SCRIPT_SRC
-    script.setAttribute('privacy-policy-id', PRIVACY_POLICY_ID)
-    script.setAttribute('data-language', 'en')
-    document.body.appendChild(script)
-  }, [])
-
   return (
     <div className="min-h-screen bg-bg">
       <header className="border-b border-border">
@@ -33,7 +17,7 @@ function PrivacyPage() {
       <main className="mx-auto max-w-2xl px-4 py-10">
         <h1 className="text-2xl font-semibold tracking-tight text-ink">Política de privacidad</h1>
 
-        <div ref={containerRef} className="uc-privacy-policy mt-8 text-sm leading-relaxed text-ink" />
+        <div className="uc-privacy-policy mt-8 text-sm leading-relaxed text-ink" dangerouslySetInnerHTML={{ __html: PRIVACY_POLICY_HTML }} />
       </main>
     </div>
   )
