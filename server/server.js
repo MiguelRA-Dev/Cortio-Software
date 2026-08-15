@@ -1,4 +1,13 @@
 require('dotenv').config({ quiet: true });
+
+// Must start before requiring ./app (and everything it pulls in), so App Insights can
+// auto-instrument every incoming request, dependency call, and uncaught exception from
+// the very first one. Only runs where APPLICATIONINSIGHTS_CONNECTION_STRING is set
+// (production) — local dev has nothing to send telemetry to.
+if (process.env.APPLICATIONINSIGHTS_CONNECTION_STRING) {
+  require('applicationinsights').setup().setSendLiveMetrics(false).start();
+}
+
 const cron = require('node-cron');
 const app = require('./app');
 const connectDB = require('./src/config/db');
