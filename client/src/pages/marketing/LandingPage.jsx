@@ -13,7 +13,6 @@ import {
 } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
-import Badge from '../../components/ui/Badge'
 import Logo from '../../components/ui/Logo'
 import ThemeToggle from '../../components/ui/ThemeToggle'
 import { useTheme } from '../../context/ThemeContext'
@@ -516,14 +515,18 @@ function LandingPage() {
                 </li>
                 <li className="flex items-center gap-2.5">
                   <ShieldCheck size={16} className="text-muted" />
-                  Recordatorios por WhatsApp
-                  <Badge variant="neutral" className="ml-0.5">Próximamente</Badge>
+                  Notificaciones de WhatsApp para tus profesionales
                 </li>
                 <li className="flex items-center gap-2.5">
                   <ShieldCheck size={16} className="text-muted" />
                   {TRIAL_DAYS} días de prueba gratis, sin tarjeta
                 </li>
               </ul>
+
+              <p className="mt-3 text-xs text-muted">
+                WhatsApp avisa a tus profesionales de cada cita nueva, cancelada, reprogramada y con recordatorio
+                antes de la hora — se activa al pasar a la versión de pago, no está incluido en la prueba gratis.
+              </p>
 
               <Link to="/register" className="mt-8 block">
                 <Button className="w-full py-3 text-base">

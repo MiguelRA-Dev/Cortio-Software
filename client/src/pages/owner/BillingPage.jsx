@@ -56,9 +56,15 @@ function BillingPage() {
 
         <div className="mt-4 flex flex-col gap-2 text-sm">
           {status.subscriptionStatus === 'trialing' && (
-            <p className="text-ink">
-              Te quedan <span className="font-semibold">{status.trialDaysLeft}</span> día(s) de prueba gratis.
-            </p>
+            <>
+              <p className="text-ink">
+                Te quedan <span className="font-semibold">{status.trialDaysLeft}</span> día(s) de prueba gratis.
+              </p>
+              <p className="text-xs text-muted">
+                Las notificaciones de WhatsApp a tus profesionales (cita nueva, cancelada, reprogramada y
+                recordatorio) se activan al pasar a la versión de pago — durante la prueba gratis no se envían.
+              </p>
+            </>
           )}
           {status.subscriptionStatus === 'active' && status.currentPeriodEnd && !status.cancelAtPeriodEnd && (
             <p className="text-ink">
@@ -159,7 +165,12 @@ function BillingPage() {
             </p>
           )}
 
-          <p className="mt-3 flex items-center gap-2 text-xs text-muted">
+          <p className="mt-3 text-xs text-muted">
+            Al activarla, tus profesionales empiezan a recibir avisos por WhatsApp de cada cita nueva, cancelada,
+            reprogramada, y un recordatorio antes de la hora.
+          </p>
+
+          <p className="mt-2 flex items-center gap-2 text-xs text-muted">
             <ShieldCheck size={14} />
             Pago seguro procesado por MercadoPago
           </p>
