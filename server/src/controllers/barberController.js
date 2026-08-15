@@ -24,6 +24,15 @@ const listPublicBarbers = asyncHandler(async (req, res) => {
   }
   const barbers = await User.find({ barbershop: barbershop._id, role: 'barber', active: true }).select(PUBLIC_FIELDS);
 
+  // The owner shows up here too when they've opted in to take appointments themselves —
+  // same account, no separate barber login (see User.attendsClients).
+  const owner = await User.findOne({
+    _id: barbershop.owner,
+    attendsClients: true,
+    active: true
+  }).select(PUBLIC_FIELDS);
+  if (owner) barbers.push(owner);
+
   const [ratings, portfolioCounts] = await Promise.all([
     Review.aggregate([
       { $match: { barbershop: barbershop._id } },

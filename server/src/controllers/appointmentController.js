@@ -31,7 +31,14 @@ async function resolveBookingContext({ slug, barberId, serviceId }) {
   const barbershop = await Barbershop.findOne({ slug, active: true });
   if (!barbershop) throw new ApiError(404, 'Establecimiento no encontrado');
 
-  const barber = await User.findOne({ _id: barberId, barbershop: barbershop._id, role: 'barber', active: true });
+  // A bookable barber, or the owner if they've opted in to take appointments themselves
+  // (User.attendsClients — same account, no separate barber login).
+  const barber = await User.findOne({
+    _id: barberId,
+    barbershop: barbershop._id,
+    active: true,
+    $or: [{ role: 'barber' }, { role: 'owner', attendsClients: true }]
+  });
   if (!barber) throw new ApiError(404, 'Profesional no encontrado');
 
   const service = await Service.findOne({ _id: serviceId, barbershop: barbershop._id, active: true });

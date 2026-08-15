@@ -12,6 +12,8 @@ import { formatCOP } from '../../lib/format'
 import { resolveAssetUrl } from '../../lib/assets'
 import { listTeam, createBarber, updateBarber, uploadBarberAvatar } from '../../api/barbers'
 import { listBarberPortfolio, deletePortfolioPhoto } from '../../api/portfolio'
+import { updateMe } from '../../api/auth'
+import { useAuth } from '../../context/AuthContext'
 
 const PAYMENT_SCHEMES = [
   { id: 'commission', label: 'Comisión' },
@@ -43,6 +45,63 @@ const EMPTY_FORM = {
   commissionRate: '',
   baseSalary: '',
   schedule: [],
+}
+
+// Lets the owner appear as a bookable professional on their own public booking page,
+// using their existing account (see User.attendsClients on the backend) — no separate
+// barber login needed.
+function OwnerAvailabilityCard() {
+  const { user, updateUser } = useAuth()
+  const queryClient = useQueryClient()
+  const [schedule, setSchedule] = useState(user.schedule || [])
+  const [saved, setSaved] = useState(false)
+
+  const toggleMutation = useMutation({
+    mutationFn: (attendsClients) => updateMe({ attendsClients }),
+    onSuccess: (updatedUser) => {
+      updateUser(updatedUser)
+      queryClient.invalidateQueries({ queryKey: ['team'] })
+    },
+  })
+
+  const scheduleMutation = useMutation({
+    mutationFn: (newSchedule) => updateMe({ schedule: newSchedule }),
+    onSuccess: (updatedUser) => {
+      updateUser(updatedUser)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+    },
+  })
+
+  return (
+    <Card className="mt-6">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h3 className="text-sm font-medium text-ink">Tú también atiendes clientes</h3>
+          <p className="mt-1 text-xs text-muted">Apareces en la agenda pública junto a tus profesionales.</p>
+        </div>
+        <Switch checked={Boolean(user.attendsClients)} onChange={(v) => toggleMutation.mutate(v)} />
+      </div>
+
+      {user.attendsClients && (
+        <div className="mt-4 border-t border-border pt-4">
+          <p className="mb-2 text-sm font-medium text-muted">Tu horario semanal</p>
+          <WeeklyScheduleEditor value={schedule} onChange={setSchedule} />
+          <div className="mt-3 flex items-center gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => scheduleMutation.mutate(schedule)}
+              disabled={scheduleMutation.isPending}
+            >
+              {scheduleMutation.isPending ? 'Guardando...' : 'Guardar horario'}
+            </Button>
+            {saved && <span className="text-sm text-success">Guardado</span>}
+          </div>
+        </div>
+      )}
+    </Card>
+  )
 }
 
 function TeamPage() {
@@ -189,6 +248,8 @@ function TeamPage() {
           Nuevo profesional
         </Button>
       </div>
+
+      <OwnerAvailabilityCard />
 
       <Card className="mt-6">
         {isLoading ? (

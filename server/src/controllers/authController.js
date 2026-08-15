@@ -148,7 +148,10 @@ const registerBarbershop = asyncHandler(async (req, res) => {
     role: 'owner',
     emailVerified,
     identificationType,
-    identificationNumber
+    identificationNumber,
+    // On by default — the owner can turn it off later from Equipo if they don't
+    // personally take appointments.
+    attendsClients: true
   });
 
   const trialEndsAt = new Date();
@@ -431,6 +434,17 @@ const updateMe = asyncHandler(async (req, res) => {
       updates.emailVerified = false;
     }
     updates.email = normalizedEmail;
+  }
+
+  // Only the owner has a bookable-as-professional toggle + schedule on their own account
+  // — barbers' schedules are managed by the owner via PATCH /api/barbers/:id instead.
+  if (req.user.role === 'owner') {
+    if (req.body.attendsClients !== undefined) {
+      updates.attendsClients = Boolean(req.body.attendsClients);
+    }
+    if (req.body.schedule !== undefined) {
+      updates.schedule = req.body.schedule;
+    }
   }
 
   const user = await User.findByIdAndUpdate(req.user._id, updates, { new: true, runValidators: true });

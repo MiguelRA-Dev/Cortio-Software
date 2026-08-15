@@ -42,7 +42,12 @@ const userSchema = new mongoose.Schema({
   commissionRate: { type: Number, min: 0, max: 100 },
   baseSalary: { type: Number, min: 0 },
   schedule: [workingHoursSchema],
-  scheduleExceptions: [scheduleExceptionSchema]
+  scheduleExceptions: [scheduleExceptionSchema],
+
+  // Only meaningful for role: 'owner' — lets the owner appear as a bookable professional
+  // on their own public booking page using their existing account, instead of needing a
+  // second barber account (which would mean a second password and an ambiguous login).
+  attendsClients: { type: Boolean, default: false }
 }, { timestamps: true });
 
 // Sparse so barbers/customers (who never set this) don't collide on a shared null value.
