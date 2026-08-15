@@ -1,5 +1,6 @@
 const TimeBlock = require('../models/TimeBlock');
 const Appointment = require('../models/Appointment');
+const User = require('../models/User');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 
@@ -14,7 +15,7 @@ const listMine = asyncHandler(async (req, res) => {
 });
 
 const create = asyncHandler(async (req, res) => {
-  const { startTime, endTime, reason } = req.body;
+  const { startTime, endTime, reason, barberId } = req.body;
   if (!startTime || !endTime) {
     throw new ApiError(400, 'startTime y endTime son requeridos');
   }
@@ -25,19 +26,35 @@ const create = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'El rango de horario es inválido');
   }
 
+  // Barbers can only block their own agenda. The owner can block their own (if they take
+  // appointments themselves) or any barber on their team's — same $or shape as
+  // resolveBookingContext, since it's the same "who's a valid bookable person here" check.
+  let targetBarberId = req.user._id;
+  if (req.user.role === 'owner' && barberId && barberId !== String(req.user._id)) {
+    const target = await User.findOne({
+      _id: barberId,
+      barbershop: req.user.barbershop,
+      $or: [{ role: 'barber' }, { role: 'owner', attendsClients: true }]
+    });
+    if (!target) {
+      throw new ApiError(404, 'Profesional no encontrado');
+    }
+    targetBarberId = target._id;
+  }
+
   const conflict = await Appointment.findOne({
-    barber: req.user._id,
+    barber: targetBarberId,
     status: { $in: ACTIVE_STATUSES },
     startTime: { $lt: end },
     endTime: { $gt: start }
   });
   if (conflict) {
-    throw new ApiError(409, 'Ya tienes una cita agendada en ese horario');
+    throw new ApiError(409, 'Ya hay una cita agendada en ese horario');
   }
 
   const block = await TimeBlock.create({
     barbershop: req.user.barbershop,
-    barber: req.user._id,
+    barber: targetBarberId,
     startTime: start,
     endTime: end,
     reason: reason?.trim() || undefined
@@ -47,7 +64,13 @@ const create = asyncHandler(async (req, res) => {
 });
 
 const remove = asyncHandler(async (req, res) => {
-  const block = await TimeBlock.findOneAndDelete({ _id: req.params.id, barber: req.user._id });
+  // Same scoping as listMine: barbers only manage their own blocks, the owner can clear
+  // any block across their team's agenda.
+  const filter =
+    req.user.role === 'owner'
+      ? { _id: req.params.id, barbershop: req.user.barbershop }
+      : { _id: req.params.id, barber: req.user._id };
+  const block = await TimeBlock.findOneAndDelete(filter);
   if (!block) {
     throw new ApiError(404, 'Bloqueo no encontrado');
   }

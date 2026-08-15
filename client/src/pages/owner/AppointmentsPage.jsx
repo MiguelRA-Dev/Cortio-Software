@@ -1,14 +1,18 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, Check, X as XIcon, List, CalendarDays, Ban } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, X as XIcon, List, CalendarDays, Ban, Lock } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
+import Button from '../../components/ui/Button'
+import Modal from '../../components/ui/Modal'
+import Input from '../../components/ui/Input'
+import Select from '../../components/ui/Select'
 import StaffCalendarView from '../../components/appointments/StaffCalendarView'
 import AgendaLegend from '../../components/appointments/AgendaLegend'
 import { useAuth } from '../../context/AuthContext'
 import BarberAgendaPage from '../barber/BarberAgendaPage'
 import { listMyAppointments, updateAppointmentStatus } from '../../api/appointments'
-import { listMyTimeBlocks } from '../../api/timeBlocks'
+import { listMyTimeBlocks, createTimeBlock, deleteTimeBlock } from '../../api/timeBlocks'
 import { listTeam } from '../../api/barbers'
 import { toDateKey } from '../../lib/dates'
 import { STATUS_VARIANT, getStaffStatusLabel } from '../../lib/appointmentStatus'
@@ -26,6 +30,8 @@ function formatTime(date) {
   return date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
+const EMPTY_BLOCK_FORM = { barberId: '', startTime: '', endTime: '', reason: '' }
+
 function AppointmentsPage() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -33,6 +39,9 @@ function AppointmentsPage() {
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [statusFilter, setStatusFilter] = useState('all')
   const [viewMode, setViewMode] = useState('calendar')
+  const [blockModalOpen, setBlockModalOpen] = useState(false)
+  const [blockForm, setBlockForm] = useState(EMPTY_BLOCK_FORM)
+  const [blockError, setBlockError] = useState('')
 
   const { data: appointments = [], isLoading } = useQuery({
     queryKey: ['appointments'],
@@ -53,6 +62,22 @@ function AppointmentsPage() {
   const statusMutation = useMutation({
     mutationFn: ({ id, status }) => updateAppointmentStatus(id, status),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['appointments'] }),
+  })
+
+  const createBlockMutation = useMutation({
+    mutationFn: createTimeBlock,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['time-blocks'] })
+      setBlockModalOpen(false)
+      setBlockForm(EMPTY_BLOCK_FORM)
+      setBlockError('')
+    },
+    onError: (err) => setBlockError(err.response?.data?.error || 'No pudimos crear el bloqueo.'),
+  })
+
+  const deleteBlockMutation = useMutation({
+    mutationFn: deleteTimeBlock,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['time-blocks'] }),
   })
 
   const selectedKey = toDateKey(selectedDate)
@@ -106,6 +131,43 @@ function AppointmentsPage() {
 
   function updateStatus(id, status) {
     statusMutation.mutate({ id, status })
+  }
+
+  function handleSelectEvent(event) {
+    if (event.isBlock && window.confirm('¿Eliminar este bloqueo?')) {
+      deleteBlockMutation.mutate(event.id)
+    }
+  }
+
+  function openBlockModal() {
+    setBlockForm({ ...EMPTY_BLOCK_FORM, barberId: barbers[0]?._id || '' })
+    setBlockError('')
+    setBlockModalOpen(true)
+  }
+
+  function handleBlockFormChange(e) {
+    setBlockForm({ ...blockForm, [e.target.name]: e.target.value })
+  }
+
+  function handleCreateBlock(e) {
+    e.preventDefault()
+    if (!blockForm.barberId || !blockForm.startTime || !blockForm.endTime) return
+
+    const dateKey = toDateKey(selectedDate)
+    const startTime = new Date(`${dateKey}T${blockForm.startTime}`)
+    const endTime = new Date(`${dateKey}T${blockForm.endTime}`)
+    if (endTime <= startTime) {
+      setBlockError('La hora de fin debe ser después de la de inicio.')
+      return
+    }
+
+    setBlockError('')
+    createBlockMutation.mutate({
+      barberId: blockForm.barberId,
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString(),
+      reason: blockForm.reason,
+    })
   }
 
   if (user.role === 'barber') return <BarberAgendaPage />
@@ -189,6 +251,11 @@ function AppointmentsPage() {
               <List size={15} />
             </button>
           </div>
+
+          <Button type="button" variant="secondary" onClick={openBlockModal} disabled={barbers.length === 0}>
+            <Lock size={14} />
+            Bloquear horario
+          </Button>
         </div>
       </div>
 
@@ -201,6 +268,7 @@ function AppointmentsPage() {
             onNavigate={setSelectedDate}
             resources={barbers.map((b) => ({ id: b._id, name: b.name }))}
             events={calendarEvents}
+            onSelectEvent={handleSelectEvent}
           />
           <p className="mt-4 text-center text-xs text-muted">
             Cada quien ve la agenda de su día. Tú ves la de todos.
@@ -228,6 +296,14 @@ function AppointmentsPage() {
                         <Ban size={11} />
                         {formatTime(new Date(b.startTime))}–{formatTime(new Date(b.endTime))}
                         {b.reason ? ` · ${b.reason}` : ''}
+                        <button
+                          type="button"
+                          onClick={() => deleteBlockMutation.mutate(b._id)}
+                          aria-label="Eliminar bloqueo"
+                          className="text-muted hover:text-danger"
+                        >
+                          <XIcon size={11} />
+                        </button>
                       </span>
                     ))}
                   </div>
@@ -276,6 +352,68 @@ function AppointmentsPage() {
           })}
         </div>
       )}
+
+      <Modal
+        open={blockModalOpen}
+        onClose={() => {
+          setBlockModalOpen(false)
+          setBlockForm(EMPTY_BLOCK_FORM)
+          setBlockError('')
+        }}
+        title="Bloquear horario"
+      >
+        <form onSubmit={handleCreateBlock} className="flex flex-col gap-4">
+          <p className="text-sm text-muted capitalize">{dayLabel}</p>
+          <Select
+            id="blockBarberId"
+            name="barberId"
+            label="Profesional"
+            value={blockForm.barberId}
+            onChange={handleBlockFormChange}
+            required
+          >
+            {barbers.map((b) => (
+              <option key={b._id} value={b._id}>
+                {b._id === user._id ? `${b.name} (tú)` : b.name}
+              </option>
+            ))}
+          </Select>
+          <div className="flex gap-3">
+            <Input
+              id="blockStart"
+              name="startTime"
+              type="time"
+              label="Desde"
+              value={blockForm.startTime}
+              onChange={handleBlockFormChange}
+              required
+            />
+            <Input
+              id="blockEnd"
+              name="endTime"
+              type="time"
+              label="Hasta"
+              value={blockForm.endTime}
+              onChange={handleBlockFormChange}
+              required
+            />
+          </div>
+          <Input
+            id="blockReason"
+            name="reason"
+            label="Motivo (opcional)"
+            placeholder="Ej. Almuerzo, cita médica..."
+            value={blockForm.reason}
+            onChange={handleBlockFormChange}
+          />
+          {blockError && (
+            <p className="rounded-lg border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-sm text-danger">{blockError}</p>
+          )}
+          <Button type="submit" disabled={createBlockMutation.isPending}>
+            {createBlockMutation.isPending ? 'Bloqueando...' : 'Bloquear'}
+          </Button>
+        </form>
+      </Modal>
     </div>
   )
 }
