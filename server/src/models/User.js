@@ -47,7 +47,12 @@ const userSchema = new mongoose.Schema({
   // Only meaningful for role: 'owner' — lets the owner appear as a bookable professional
   // on their own public booking page using their existing account, instead of needing a
   // second barber account (which would mean a second password and an ambiguous login).
-  attendsClients: { type: Boolean, default: false }
+  attendsClients: { type: Boolean, default: false },
+
+  // Empty (default) = no restriction, can perform every active service in the shop.
+  // Non-empty = restricted to only these. Same permissive-by-default style as
+  // Service.active — no existing barber becomes unbookable the moment this ships.
+  services: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Service' }]
 }, { timestamps: true });
 
 // Sparse so barbers/customers (who never set this) don't collide on a shared null value.

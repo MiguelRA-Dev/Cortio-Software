@@ -7,12 +7,13 @@ const PortfolioPhoto = require('../models/PortfolioPhoto');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 
-const PUBLIC_FIELDS = 'name avatarUrl schedule';
+const PUBLIC_FIELDS = 'name avatarUrl schedule services';
 
 const listMyTeam = asyncHandler(async (req, res) => {
   // Barbers only get enough to populate a "who attended" picker (e.g. in POS) —
-  // never a colleague's pay scheme, commission rate, phone, etc.
-  const fields = req.user.role === 'owner' ? '-passwordHash' : 'name avatarUrl active';
+  // never a colleague's pay scheme, commission rate, phone, etc. `services` is harmless
+  // to share (not sensitive), so a barber can still see who covers what.
+  const fields = req.user.role === 'owner' ? '-passwordHash' : 'name avatarUrl active services';
   const barbers = await User.find({ barbershop: req.user.barbershop, role: 'barber' }).select(fields);
   res.json(barbers);
 });
@@ -59,7 +60,7 @@ const listPublicBarbers = asyncHandler(async (req, res) => {
   res.json(enriched);
 });
 
-const ALLOWED_UPDATE_FIELDS = ['name', 'phone', 'avatarUrl', 'paymentScheme', 'commissionRate', 'baseSalary', 'schedule', 'scheduleExceptions', 'active'];
+const ALLOWED_UPDATE_FIELDS = ['name', 'phone', 'avatarUrl', 'paymentScheme', 'commissionRate', 'baseSalary', 'schedule', 'scheduleExceptions', 'active', 'services'];
 
 const updateBarber = asyncHandler(async (req, res) => {
   const barber = await User.findOne({ _id: req.params.id, barbershop: req.user.barbershop, role: 'barber' });

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Pencil, Camera, Trash2, Image as ImageIcon, UserRound } from 'lucide-react'
 import Card from '../../components/ui/Card'
@@ -12,6 +12,7 @@ import { formatCOP } from '../../lib/format'
 import { resolveAssetUrl } from '../../lib/assets'
 import { listTeam, createBarber, updateBarber, uploadBarberAvatar } from '../../api/barbers'
 import { listBarberPortfolio, listMyPortfolio, createPortfolioPhoto, deletePortfolioPhoto } from '../../api/portfolio'
+import { listServices } from '../../api/services'
 import { updateMe } from '../../api/auth'
 import { useAuth } from '../../context/AuthContext'
 
@@ -45,6 +46,80 @@ const EMPTY_FORM = {
   commissionRate: '',
   baseSalary: '',
   schedule: [],
+  services: [],
+}
+
+// Shared by the barber modal and OwnerAvailabilityCard — both back the same
+// User.services allowlist. The "Todos"/"Solo estos" toggle needs its own local state
+// (initialized from value.length > 0, but not purely derived from it) — deriving it
+// straight from `value.length > 0` meant flipping to "Solo estos" with nothing checked
+// yet immediately re-evaluated back to false, so the switch looked like it wouldn't turn
+// on. Callers should pass `key={editingId || 'new'}` (or similar) so this resets when
+// switching which barber is being edited, since the component itself doesn't unmount.
+function ServicesPicker({ value, onChange, services }) {
+  const [restricted, setRestricted] = useState(value.length > 0)
+
+  function handleToggle(enabled) {
+    setRestricted(enabled)
+    if (!enabled) onChange([])
+  }
+
+  const byCategory = useMemo(() => {
+    const groups = new Map()
+    for (const s of services) {
+      const category = s.category?.trim() || 'Otros'
+      if (!groups.has(category)) groups.set(category, [])
+      groups.get(category).push(s)
+    }
+    return Array.from(groups.entries())
+  }, [services])
+
+  function toggleService(id, checked) {
+    onChange(checked ? [...value, id] : value.filter((v) => v !== id))
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-sm font-medium text-muted">Servicios que realiza</p>
+        <div className="flex items-center gap-2 text-xs">
+          <span className={!restricted ? 'font-medium text-ink' : 'text-muted'}>Todos</span>
+          <Switch checked={restricted} onChange={handleToggle} />
+          <span className={restricted ? 'font-medium text-ink' : 'text-muted'}>Solo estos</span>
+        </div>
+      </div>
+
+      {restricted && (
+        <div className="mt-3 flex flex-col gap-3 rounded-lg border border-border bg-surface-2 p-3">
+          {services.length === 0 ? (
+            <p className="text-xs text-muted">Primero crea servicios en la sección Servicios.</p>
+          ) : (
+            byCategory.map(([category, items]) => (
+              <div key={category}>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">{category}</p>
+                <div className="mt-1.5 flex flex-col gap-1.5">
+                  {items.map((s) => (
+                    <label key={s._id} className="flex items-center gap-2 text-sm text-ink">
+                      <input
+                        type="checkbox"
+                        checked={value.includes(s._id)}
+                        onChange={(e) => toggleService(s._id, e.target.checked)}
+                        className="h-4 w-4 rounded border-border accent-accent"
+                      />
+                      {s.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+          {value.length === 0 && services.length > 0 && (
+            <p className="text-xs text-danger">Elige al menos un servicio, o vuelve a "Todos".</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 // Lets the owner appear as a bookable professional on their own public booking page,
@@ -54,11 +129,18 @@ function OwnerAvailabilityCard() {
   const { user, updateUser } = useAuth()
   const queryClient = useQueryClient()
   const [schedule, setSchedule] = useState(user.schedule || [])
+  const [services, setServices] = useState(user.services || [])
   const [saved, setSaved] = useState(false)
   const [avatarError, setAvatarError] = useState('')
   const [photoError, setPhotoError] = useState('')
   const avatarInputRef = useRef(null)
   const photoInputRef = useRef(null)
+
+  const { data: allServices = [] } = useQuery({
+    queryKey: ['services'],
+    queryFn: listServices,
+    enabled: Boolean(user.attendsClients),
+  })
 
   const toggleMutation = useMutation({
     mutationFn: (attendsClients) => updateMe({ attendsClients }),
@@ -68,8 +150,8 @@ function OwnerAvailabilityCard() {
     },
   })
 
-  const scheduleMutation = useMutation({
-    mutationFn: (newSchedule) => updateMe({ schedule: newSchedule }),
+  const profileMutation = useMutation({
+    mutationFn: () => updateMe({ schedule, services }),
     onSuccess: (updatedUser) => {
       updateUser(updatedUser)
       setSaved(true)
@@ -133,17 +215,22 @@ function OwnerAvailabilityCard() {
           <div>
             <p className="mb-2 text-sm font-medium text-muted">Tu horario semanal</p>
             <WeeklyScheduleEditor value={schedule} onChange={setSchedule} />
-            <div className="mt-3 flex items-center gap-3">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => scheduleMutation.mutate(schedule)}
-                disabled={scheduleMutation.isPending}
-              >
-                {scheduleMutation.isPending ? 'Guardando...' : 'Guardar horario'}
-              </Button>
-              {saved && <span className="text-sm text-success">Guardado</span>}
-            </div>
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <ServicesPicker value={services} onChange={setServices} services={allServices} />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => profileMutation.mutate()}
+              disabled={profileMutation.isPending}
+            >
+              {profileMutation.isPending ? 'Guardando...' : 'Guardar horario y servicios'}
+            </Button>
+            {saved && <span className="text-sm text-success">Guardado</span>}
           </div>
 
           <div className="border-t border-border pt-4">
@@ -231,6 +318,7 @@ function OwnerAvailabilityCard() {
 function TeamPage() {
   const queryClient = useQueryClient()
   const { data: barbers = [], isLoading, isError } = useQuery({ queryKey: ['team'], queryFn: listTeam })
+  const { data: allServices = [] } = useQuery({ queryKey: ['services'], queryFn: listServices })
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
@@ -305,6 +393,7 @@ function TeamPage() {
       commissionRate: barber.commissionRate ?? '',
       baseSalary: barber.baseSalary ?? '',
       schedule: barber.schedule || [],
+      services: barber.services || [],
     })
     setFormError('')
     setAvatarError('')
@@ -339,6 +428,7 @@ function TeamPage() {
         commissionRate: form.commissionRate ? Number(form.commissionRate) : null,
         baseSalary: form.baseSalary ? Number(form.baseSalary) : null,
         schedule: form.schedule,
+        services: form.services,
       }
       updateMutation.mutate({ id: editingId, payload })
     } else {
@@ -351,6 +441,7 @@ function TeamPage() {
         commissionRate: form.commissionRate ? Number(form.commissionRate) : undefined,
         baseSalary: form.baseSalary ? Number(form.baseSalary) : undefined,
         schedule: form.schedule,
+        services: form.services,
       }
       createMutation.mutate(payload)
     }
@@ -528,6 +619,13 @@ function TeamPage() {
             <p className="mb-2 text-sm font-medium text-muted">Horario semanal</p>
             <WeeklyScheduleEditor value={form.schedule} onChange={(schedule) => setForm({ ...form, schedule })} />
           </div>
+
+          <ServicesPicker
+            key={editingId || 'new'}
+            value={form.services}
+            onChange={(services) => setForm({ ...form, services })}
+            services={allServices}
+          />
 
           {formError && (
             <p className="rounded-lg border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-sm text-danger">{formError}</p>

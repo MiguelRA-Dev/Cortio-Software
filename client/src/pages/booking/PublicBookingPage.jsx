@@ -376,15 +376,18 @@ function PublicBookingPage() {
   })
   // Only ever built from services that exist, so a category with zero active services
   // simply never appears — no separate "does this category have anything" check needed.
+  // barber.services empty/absent means "no restriction" (see User.js on the backend) —
+  // same rule resolveBookingContext enforces server-side, this is just the UI reflecting it.
   const servicesByCategory = useMemo(() => {
+    const eligible = barber?.services?.length ? services.filter((s) => barber.services.includes(s._id)) : services
     const groups = new Map()
-    for (const s of services) {
+    for (const s of eligible) {
       const category = s.category?.trim() || 'Otros'
       if (!groups.has(category)) groups.set(category, [])
       groups.get(category).push(s)
     }
     return Array.from(groups.entries())
-  }, [services])
+  }, [services, barber])
   const { data: portfolioPhotos = [] } = useQuery({
     queryKey: ['public-portfolio', slug],
     queryFn: () => listPublicPortfolio(slug),

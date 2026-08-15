@@ -203,7 +203,7 @@ const registerBarbershop = asyncHandler(async (req, res) => {
 });
 
 const registerBarber = asyncHandler(async (req, res) => {
-  const { name, email, password, phone, paymentScheme, commissionRate, baseSalary, schedule } = req.body;
+  const { name, email, password, phone, paymentScheme, commissionRate, baseSalary, schedule, services } = req.body;
 
   if (!name || !email || !password || !paymentScheme) {
     throw new ApiError(400, 'name, email, password y paymentScheme son requeridos');
@@ -228,7 +228,8 @@ const registerBarber = asyncHandler(async (req, res) => {
     paymentScheme,
     commissionRate,
     baseSalary,
-    schedule
+    schedule,
+    services
   });
 
   res.status(201).json(sanitizeUser(barber));
@@ -444,6 +445,9 @@ const updateMe = asyncHandler(async (req, res) => {
     }
     if (req.body.schedule !== undefined) {
       updates.schedule = req.body.schedule;
+    }
+    if (req.body.services !== undefined) {
+      updates.services = req.body.services;
     }
   }
 

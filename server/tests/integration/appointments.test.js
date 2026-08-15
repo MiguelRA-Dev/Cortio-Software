@@ -99,3 +99,131 @@ describe('appointments: availability respects the barber\'s Bogotá business hou
     expect(res.body.slots).toEqual([]);
   });
 });
+
+// Not every professional performs every service (e.g. one barber might not do color) —
+// User.services is an optional allowlist enforced in resolveBookingContext, the single
+// choke point both getAvailability and create funnel through.
+describe('appointments: a barber restricted to specific services', () => {
+  let customerToken;
+  let barbershopSlug;
+  let restrictedBarberId;
+  let unrestrictedBarberId;
+  let serviceAId;
+  let serviceBId;
+
+  const futureInstant = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+  const dateStr = bogotaDateKey(futureInstant);
+  const { dayOfWeek } = bogotaDateParts(bogotaMidnightFromDateString(dateStr));
+
+  beforeAll(async () => {
+    await connectTestDb();
+
+    const ownerRes = await request(app).post('/api/auth/register-barbershop').send({
+      ownerName: 'Diana Dueña',
+      email: 'diana-services@example.com',
+      password: 'ownerPass123',
+      confirmPassword: 'ownerPass123',
+      barbershopName: 'Barbería Diana',
+      slug: 'barberia-diana-services',
+      identificationType: 'CC',
+      identificationNumber: '2000000002',
+    });
+    const ownerToken = ownerRes.body.token;
+    barbershopSlug = ownerRes.body.barbershop.slug;
+
+    const schedule = [{ dayOfWeek, startTime: '09:00', endTime: '20:00' }];
+
+    const restrictedRes = await request(app)
+      .post('/api/auth/register-barber')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({
+        name: 'Solo Cortes',
+        email: 'solo-cortes@example.com',
+        password: 'barberPass123',
+        paymentScheme: 'fixed',
+        baseSalary: 0,
+        schedule,
+      });
+    restrictedBarberId = restrictedRes.body._id;
+
+    const unrestrictedRes = await request(app)
+      .post('/api/auth/register-barber')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({
+        name: 'Hace De Todo',
+        email: 'hace-de-todo@example.com',
+        password: 'barberPass123',
+        paymentScheme: 'fixed',
+        baseSalary: 0,
+        schedule,
+      });
+    unrestrictedBarberId = unrestrictedRes.body._id;
+
+    const serviceARes = await request(app)
+      .post('/api/services')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ name: 'Corte clásico', category: 'Cortes', durationMinutes: 30, price: 20000 });
+    serviceAId = serviceARes.body._id;
+
+    const serviceBRes = await request(app)
+      .post('/api/services')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ name: 'Tinte', category: 'Color', durationMinutes: 60, price: 50000 });
+    serviceBId = serviceBRes.body._id;
+
+    // Restrict "Solo Cortes" to service A only — "Hace De Todo" keeps the default empty
+    // services array (unrestricted).
+    await request(app)
+      .patch(`/api/barbers/${restrictedBarberId}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ services: [serviceAId] });
+
+    const customerRes = await request(app).post('/api/auth/register-customer').send({
+      name: 'Cliente Prueba',
+      email: 'cliente-services@example.com',
+      password: 'customerPass123',
+    });
+    customerToken = customerRes.body.token;
+  });
+
+  afterAll(async () => {
+    await disconnectTestDb();
+  });
+
+  it('rejects booking a service the restricted barber does not perform', async () => {
+    const res = await request(app)
+      .post('/api/appointments')
+      .set('Authorization', `Bearer ${customerToken}`)
+      .send({ slug: barbershopSlug, barberId: restrictedBarberId, serviceId: serviceBId, startTime: `${dateStr}T14:00:00.000Z` });
+
+    expect(res.status).toBe(409);
+  });
+
+  it('allows booking a service the restricted barber does perform', async () => {
+    const res = await request(app)
+      .post('/api/appointments')
+      .set('Authorization', `Bearer ${customerToken}`)
+      .send({ slug: barbershopSlug, barberId: restrictedBarberId, serviceId: serviceAId, startTime: `${dateStr}T15:00:00.000Z` });
+
+    expect(res.status).toBe(201);
+  });
+
+  it('allows booking any service with an unrestricted barber (empty services = backward compatible)', async () => {
+    const res = await request(app)
+      .post('/api/appointments')
+      .set('Authorization', `Bearer ${customerToken}`)
+      .send({ slug: barbershopSlug, barberId: unrestrictedBarberId, serviceId: serviceBId, startTime: `${dateStr}T16:00:00.000Z` });
+
+    expect(res.status).toBe(201);
+  });
+
+  it('rejects the same mismatched combination on the availability endpoint too', async () => {
+    const res = await request(app).get(`/api/appointments/availability/${barbershopSlug}`).query({
+      barberId: restrictedBarberId,
+      serviceId: serviceBId,
+      date: dateStr,
+    });
+
+    expect(res.status).toBe(409);
+  });
+});

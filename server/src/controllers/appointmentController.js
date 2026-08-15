@@ -45,6 +45,15 @@ async function resolveBookingContext({ slug, barberId, serviceId }) {
   const service = await Service.findOne({ _id: serviceId, barbershop: barbershop._id, active: true });
   if (!service) throw new ApiError(404, 'Servicio no encontrado');
 
+  // Empty barber.services means "no restriction" (see User.js) — only enforce the
+  // allowlist when the barber actually has one set.
+  if (barber.services.length > 0) {
+    const canPerform = barber.services.some((id) => id.toString() === service._id.toString());
+    if (!canPerform) {
+      throw new ApiError(409, 'Este profesional no realiza el servicio seleccionado');
+    }
+  }
+
   return { barbershop, barber, service };
 }
 
