@@ -110,22 +110,32 @@ function EventContent({ event }) {
   )
 }
 
+// First name only below the `sm` breakpoint — with 2+ resource columns on a phone-width
+// screen, the full name ("Miguel Angel Riaño Alvarez") has no room and overflows/clips
+// mid-word. `min-w-0` is required for `truncate` to actually take effect inside a flex
+// column (flex items default to a min-width based on their content otherwise).
 function ResourceHeader({ resource }) {
+  const firstName = resource.name?.split(' ')[0] || resource.name
   return (
-    <div className="flex flex-col items-center gap-1.5 py-2">
+    <div className="flex w-full min-w-0 flex-col items-center gap-1 px-1 py-2 sm:gap-1.5">
       <div
-        className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold text-white"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white sm:h-9 sm:w-9 sm:text-sm"
         style={{ backgroundColor: RESOURCE_ACCENT }}
       >
         {resource.name?.[0]?.toUpperCase()}
       </div>
-      <p className="text-sm font-medium text-ink">{resource.name}</p>
-      <Badge variant="muted">Profesional</Badge>
+      <p className="w-full truncate text-center text-xs font-medium text-ink sm:text-sm" title={resource.name}>
+        <span className="sm:hidden">{firstName}</span>
+        <span className="hidden sm:inline">{resource.name}</span>
+      </p>
+      <Badge variant="muted" className="hidden sm:inline-flex">
+        Profesional
+      </Badge>
     </div>
   )
 }
 
-function StaffCalendarView({ date, onNavigate, resources, events, onSelectEvent, onEventDrop }) {
+function StaffCalendarView({ date, onNavigate, resources, events, onSelectEvent, onEventDrop, onSelectSlot }) {
   const CalendarComponent = onEventDrop ? DragAndDropCalendar : Calendar
 
   return (
@@ -154,6 +164,11 @@ function StaffCalendarView({ date, onNavigate, resources, events, onSelectEvent,
         onEventDrop={onEventDrop}
         draggableAccessor={(event) => RESCHEDULABLE_STATUSES.includes(event.status)}
         resizable={false}
+        // Lets an owner/barber press-and-drag over empty time to block it, instead of only
+        // through the "Bloquear horario" button — "ignoreEvents" so dragging over an
+        // existing appointment/block doesn't also start a new selection.
+        selectable={onSelectSlot ? 'ignoreEvents' : false}
+        onSelectSlot={onSelectSlot}
       />
     </div>
   )

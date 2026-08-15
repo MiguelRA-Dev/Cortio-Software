@@ -14,7 +14,7 @@ import BarberAgendaPage from '../barber/BarberAgendaPage'
 import { listMyAppointments, updateAppointmentStatus } from '../../api/appointments'
 import { listMyTimeBlocks, createTimeBlock, deleteTimeBlock } from '../../api/timeBlocks'
 import { listTeam } from '../../api/barbers'
-import { toDateKey } from '../../lib/dates'
+import { toDateKey, toTimeInputValue } from '../../lib/dates'
 import { STATUS_VARIANT, getStaffStatusLabel } from '../../lib/appointmentStatus'
 
 const STATUS_FILTERS = [
@@ -145,6 +145,20 @@ function AppointmentsPage() {
     setBlockModalOpen(true)
   }
 
+  // Dragging over empty time in the calendar (touch-and-drag on mobile, click-and-drag on
+  // desktop) opens the same modal pre-filled with the dragged range and column, instead of
+  // only being reachable through the "Bloquear horario" button.
+  function handleSelectSlot({ start, end, resourceId }) {
+    setBlockForm({
+      barberId: resourceId || barbers[0]?._id || '',
+      startTime: toTimeInputValue(start),
+      endTime: toTimeInputValue(end),
+      reason: '',
+    })
+    setBlockError('')
+    setBlockModalOpen(true)
+  }
+
   function handleBlockFormChange(e) {
     setBlockForm({ ...blockForm, [e.target.name]: e.target.value })
   }
@@ -269,6 +283,7 @@ function AppointmentsPage() {
             resources={barbers.map((b) => ({ id: b._id, name: b.name }))}
             events={calendarEvents}
             onSelectEvent={handleSelectEvent}
+            onSelectSlot={handleSelectSlot}
           />
           <p className="mt-4 text-center text-xs text-muted">
             Cada quien ve la agenda de su día. Tú ves la de todos.

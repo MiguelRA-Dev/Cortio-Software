@@ -21,10 +21,16 @@ app.set('trust proxy', 1);
 // Requests with no Origin header (curl, server-to-server, the MercadoPago webhook) are
 // always let through — they're not the browser-driven case CORS protects against.
 const allowedOrigins = new Set(['http://localhost:5173', process.env.APP_URL].filter(Boolean));
+// Lets a phone on the same Wi-Fi open the Vite dev server (e.g. testing touch/drag
+// interactions on real mobile hardware) without hardcoding a specific LAN IP that changes
+// across networks. NODE_ENV is 'production' on Azure, so this never relaxes CORS there.
+const PRIVATE_LAN_ORIGIN = /^https?:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}):\d+$/;
 app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin || allowedOrigins.has(origin)) {
+        callback(null, true);
+      } else if (process.env.NODE_ENV !== 'production' && PRIVATE_LAN_ORIGIN.test(origin)) {
         callback(null, true);
       } else {
         callback(new ApiError(403, 'No permitido por la política de CORS'));

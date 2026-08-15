@@ -11,7 +11,7 @@ import AgendaLegend from '../../components/appointments/AgendaLegend'
 import { useAuth } from '../../context/AuthContext'
 import { listMyAppointments, updateAppointmentStatus, rescheduleAppointment } from '../../api/appointments'
 import { listMyTimeBlocks, createTimeBlock, deleteTimeBlock } from '../../api/timeBlocks'
-import { toDateKey } from '../../lib/dates'
+import { toDateKey, toTimeInputValue } from '../../lib/dates'
 import { STATUS_VARIANT, getStaffStatusLabel } from '../../lib/appointmentStatus'
 
 const STATUS_FILTERS = [
@@ -172,6 +172,15 @@ function BarberAgendaPage() {
     rescheduleMutation.mutate({ id: event.id, startTime: start.toISOString() })
   }
 
+  // Dragging over empty time (touch-and-drag on mobile, click-and-drag on desktop) opens
+  // the same modal pre-filled with the dragged range, instead of only being reachable
+  // through the "Bloquear horario" button.
+  function handleSelectSlot({ start, end }) {
+    setBlockForm({ startTime: toTimeInputValue(start), endTime: toTimeInputValue(end), reason: '' })
+    setBlockError('')
+    setBlockModalOpen(true)
+  }
+
   return (
     <div>
       <div>
@@ -280,6 +289,7 @@ function BarberAgendaPage() {
             events={calendarEvents}
             onEventDrop={handleEventDrop}
             onSelectEvent={handleSelectEvent}
+            onSelectSlot={handleSelectSlot}
           />
         </Card>
       ) : (

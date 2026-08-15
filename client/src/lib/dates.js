@@ -19,3 +19,11 @@ export function toDateKey(date) {
 export function toUtcDateInput(date) {
   return date.toISOString().slice(0, 10)
 }
+
+// "HH:mm" in the browser's own local time, zero-padded — for prefilling an
+// <input type="time">. Local (not toDateKey's timezone-safe UTC-shift trick) on purpose:
+// the calendar drag-select this feeds already operates in local time, matching how the
+// rest of the block-creation form already combines a date key with a time-of-day string.
+export function toTimeInputValue(date) {
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
