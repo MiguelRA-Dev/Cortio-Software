@@ -20,7 +20,8 @@ async function runReminderJob() {
   })
     .populate('barber', 'phone')
     .populate('customer', 'name')
-    .populate('service', 'name');
+    .populate('service', 'name')
+    .populate('barbershop', 'subscriptionStatus');
 
   for (const appointment of due) {
     try {
@@ -28,7 +29,8 @@ async function runReminderJob() {
         barber: appointment.barber,
         customer: appointment.customer,
         service: appointment.service,
-        startTime: appointment.startTime
+        startTime: appointment.startTime,
+        subscriptionStatus: appointment.barbershop.subscriptionStatus
       });
       appointment.reminderSentAt = now;
       await appointment.save();

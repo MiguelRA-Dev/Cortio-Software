@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { sendTemplateMessage } from '../../src/services/whatsappService.js';
+import {
+  sendTemplateMessage,
+  notifyAppointmentCreated,
+  notifyAppointmentCancelled,
+  notifyAppointmentRescheduled,
+  notifyAppointmentReminder
+} from '../../src/services/whatsappService.js';
 
 // sendTemplateMessage must NEVER throw — a bad phone number, a missing token, or Meta
 // being down should log and return null, not break the appointment flow that triggered it.
@@ -98,4 +104,55 @@ describe('whatsappService.sendTemplateMessage', () => {
 
     expect(result).toBeNull();
   });
+});
+
+// EXPLICIT COST GATE: a free trial signup must never trigger a real WhatsApp send — Meta
+// bills per business-initiated message, and Cortio (not the barbershop) eats that cost
+// until the shop actually pays. Only subscriptionStatus === 'active' may send.
+describe('whatsappService notify* functions gate on a paid (active) subscription', () => {
+  const context = {
+    barber: { phone: '3134167377' },
+    customer: { name: 'Juan Pérez' },
+    service: { name: 'Corte clásico' },
+    startTime: new Date('2026-08-25T14:00:00.000Z'),
+  };
+
+  beforeEach(() => {
+    process.env.WHATSAPP_ACCESS_TOKEN = 'test-token';
+    process.env.WHATSAPP_PHONE_NUMBER_ID = '123456';
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function stubFetch() {
+    const fn = vi.fn(async () => ({ ok: true, json: async () => ({}) }));
+    vi.stubGlobal('fetch', fn);
+    return fn;
+  }
+
+  const NOTIFY_FNS = {
+    notifyAppointmentCreated,
+    notifyAppointmentCancelled,
+    notifyAppointmentRescheduled,
+    notifyAppointmentReminder,
+  };
+
+  for (const [name, fn] of Object.entries(NOTIFY_FNS)) {
+    it(`${name}: never sends for a trialing/past_due/canceled shop`, async () => {
+      const fetchMock = stubFetch();
+      for (const subscriptionStatus of ['trialing', 'past_due', 'canceled', undefined]) {
+        const result = await fn({ ...context, subscriptionStatus });
+        expect(result).toBeNull();
+      }
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it(`${name}: sends once the shop's subscription is active`, async () => {
+      const fetchMock = stubFetch();
+      await fn({ ...context, subscriptionStatus: 'active' });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+  }
 });

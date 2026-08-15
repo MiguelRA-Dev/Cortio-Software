@@ -20,7 +20,8 @@ async function loadNotificationContext(appointmentId) {
   return Appointment.findById(appointmentId)
     .populate('barber', 'phone')
     .populate('customer', 'name')
-    .populate('service', 'name');
+    .populate('service', 'name')
+    .populate('barbershop', 'subscriptionStatus');
 }
 
 const ONE_DAY_MS = 24 * 60 * 60000;
@@ -130,7 +131,13 @@ const create = asyncHandler(async (req, res) => {
     priceAtBooking: service.price
   });
 
-  await notifyAppointmentCreated({ barber, customer: req.user, service, startTime: start });
+  await notifyAppointmentCreated({
+    barber,
+    customer: req.user,
+    service,
+    startTime: start,
+    subscriptionStatus: barbershop.subscriptionStatus
+  });
 
   res.status(201).json(appointment);
 });
@@ -187,7 +194,8 @@ const updateStatus = asyncHandler(async (req, res) => {
       barber: ctx.barber,
       customer: ctx.customer,
       service: ctx.service,
-      startTime: ctx.startTime
+      startTime: ctx.startTime,
+      subscriptionStatus: ctx.barbershop.subscriptionStatus
     });
   }
 
@@ -214,7 +222,8 @@ const cancelMine = asyncHandler(async (req, res) => {
     barber: ctx.barber,
     customer: ctx.customer,
     service: ctx.service,
-    startTime: ctx.startTime
+    startTime: ctx.startTime,
+    subscriptionStatus: ctx.barbershop.subscriptionStatus
   });
 
   res.json(appointment);
@@ -283,7 +292,8 @@ const reschedule = asyncHandler(async (req, res) => {
     barber: ctx.barber,
     customer: ctx.customer,
     service: ctx.service,
-    startTime: ctx.startTime
+    startTime: ctx.startTime,
+    subscriptionStatus: ctx.barbershop.subscriptionStatus
   });
 
   res.json(appointment);
