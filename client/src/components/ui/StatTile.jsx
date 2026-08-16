@@ -1,8 +1,14 @@
 import { ArrowUp, ArrowDown } from 'lucide-react'
 import Card from './Card'
 
-function StatTile({ label, value, delta, deltaDirection = 'up', icon: Icon }) {
-  const isPositive = deltaDirection === 'up'
+// `deltaDirection` controls the arrow (did the raw number go up or down), `deltaTone`
+// controls the color (is that a good or bad thing) — kept separate because for metrics
+// like Gastos, a number going up is bad, but the arrow should still point up to match
+// what actually happened. `deltaTone` is optional and defaults to matching direction,
+// so callers that only care about "higher is better" metrics can ignore it entirely.
+function StatTile({ label, value, delta, deltaDirection = 'up', deltaTone, icon: Icon }) {
+  const isUp = deltaDirection === 'up'
+  const isGood = deltaTone ? deltaTone === 'good' : isUp
 
   return (
     <Card className="p-5">
@@ -14,10 +20,10 @@ function StatTile({ label, value, delta, deltaDirection = 'up', icon: Icon }) {
       {delta && (
         <div
           className={`mt-2 inline-flex items-center gap-1 text-xs font-medium ${
-            isPositive ? 'text-success' : 'text-danger'
+            isGood ? 'text-success' : 'text-danger'
           }`}
         >
-          {isPositive ? <ArrowUp size={13} /> : <ArrowDown size={13} />}
+          {isUp ? <ArrowUp size={13} /> : <ArrowDown size={13} />}
           {delta}
         </div>
       )}

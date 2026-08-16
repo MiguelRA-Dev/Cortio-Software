@@ -135,11 +135,25 @@ function ResourceHeader({ resource }) {
   )
 }
 
-function StaffCalendarView({ date, onNavigate, resources, events, onSelectEvent, onEventDrop, onSelectSlot }) {
+function StaffCalendarView({
+  date,
+  onNavigate,
+  resources,
+  events,
+  onSelectEvent,
+  onEventDrop,
+  onSelectSlot,
+  height = 760,
+  scrollToTime,
+  // Full 24h by default (real Agenda page) — the landing preview narrows this to
+  // business hours so there's nothing to scroll past.
+  minTime = new Date(1970, 0, 1, 0, 0),
+  maxTime = new Date(1970, 0, 1, 23, 59),
+}) {
   const CalendarComponent = onEventDrop ? DragAndDropCalendar : Calendar
 
   return (
-    <div style={{ height: 760 }}>
+    <div style={{ height }}>
       <CalendarComponent
         localizer={localizer}
         culture="es"
@@ -154,8 +168,9 @@ function StaffCalendarView({ date, onNavigate, resources, events, onSelectEvent,
         resourceTitleAccessor="name"
         startAccessor="start"
         endAccessor="end"
-        min={new Date(1970, 0, 1, 0, 0)}
-        max={new Date(1970, 0, 1, 23, 59)}
+        min={minTime}
+        max={maxTime}
+        scrollToTime={scrollToTime}
         step={30}
         timeslots={2}
         eventPropGetter={eventPropGetter}

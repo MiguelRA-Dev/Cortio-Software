@@ -2,13 +2,13 @@ import { useMemo } from 'react'
 import Switch from '../ui/Switch'
 
 const DAYS = [
-  { id: 1, label: 'Lunes' },
-  { id: 2, label: 'Martes' },
-  { id: 3, label: 'Miércoles' },
-  { id: 4, label: 'Jueves' },
-  { id: 5, label: 'Viernes' },
-  { id: 6, label: 'Sábado' },
-  { id: 0, label: 'Domingo' },
+  { id: 1, label: 'Lun' },
+  { id: 2, label: 'Mar' },
+  { id: 3, label: 'Mié' },
+  { id: 4, label: 'Jue' },
+  { id: 5, label: 'Vie' },
+  { id: 6, label: 'Sáb' },
+  { id: 0, label: 'Dom' },
 ]
 
 const DEFAULT_START = '09:00'
@@ -34,32 +34,32 @@ function WeeklyScheduleEditor({ value, onChange }) {
   }
 
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-1.5">
       {DAYS.map((day) => {
         const entry = byDay[day.id]
         const enabled = Boolean(entry)
         return (
-          <div key={day.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:flex-nowrap">
+          <div key={day.id} className="flex items-center gap-2">
             <Switch checked={enabled} onChange={(v) => toggleDay(day.id, v)} />
-            <span className="w-20 shrink-0 text-sm text-ink">{day.label}</span>
+            <span className="w-7 shrink-0 text-xs font-medium text-ink">{day.label}</span>
             {enabled ? (
-              <div className="flex min-w-0 basis-full flex-wrap items-center gap-2 sm:basis-auto sm:flex-1">
+              <div className="flex min-w-0 flex-1 items-center gap-1.5">
                 <input
                   type="time"
                   value={entry.startTime}
                   onChange={(e) => updateTime(day.id, 'startTime', e.target.value)}
-                  className="min-w-0 rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-accent"
+                  className="max-w-34 flex-1 min-w-0 rounded-lg border border-border bg-surface-2 px-2 py-1 text-xs text-ink outline-none focus:border-accent"
                 />
-                <span className="text-sm text-muted">a</span>
+                <span className="shrink-0 text-xs text-muted">–</span>
                 <input
                   type="time"
                   value={entry.endTime}
                   onChange={(e) => updateTime(day.id, 'endTime', e.target.value)}
-                  className="min-w-0 rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none focus:border-accent"
+                  className="max-w-34 flex-1 min-w-0 rounded-lg border border-border bg-surface-2 px-2 py-1 text-xs text-ink outline-none focus:border-accent"
                 />
               </div>
             ) : (
-              <span className="text-xs text-muted">No trabaja</span>
+              <span className="flex-1 text-xs text-muted">No trabaja</span>
             )}
           </div>
         )

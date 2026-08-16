@@ -27,6 +27,7 @@
 
   --danger: #dc2626;
   --success: #16a34a;
+  --warning: #d97706;
 }
 
 .dark {
@@ -46,6 +47,7 @@
 
   --danger: #f87171;
   --success: #4ade80;
+  --warning: #fbbf24;
 }
 
 @theme inline {
@@ -63,6 +65,7 @@
 
   --color-danger: var(--danger);
   --color-success: var(--success);
+  --color-warning: var(--warning);
 
   --font-sans: "Geist", system-ui, sans-serif;
 }

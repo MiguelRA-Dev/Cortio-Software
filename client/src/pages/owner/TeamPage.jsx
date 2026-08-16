@@ -122,6 +122,20 @@ function ServicesPicker({ value, onChange, services }) {
   )
 }
 
+const BARBER_FORM_TABS = [
+  { id: 'personal', label: 'Personal' },
+  { id: 'pago', label: 'Pago' },
+  { id: 'horario', label: 'Horario' },
+]
+
+// Kept mounted (just visually hidden) rather than conditionally rendered when inactive,
+// so required fields on other tabs stay in the DOM — the browser exempts non-rendered
+// elements from native constraint validation, so this is what lets validateBarberForm
+// below reliably catch an empty required field on a tab the user never visited.
+function TabPanel({ active, children }) {
+  return <div className={active ? 'flex flex-col gap-4' : 'hidden'}>{children}</div>
+}
+
 // Lets the owner appear as a bookable professional on their own public booking page,
 // using their existing account (see User.attendsClients on the backend) — no separate
 // barber login needed.
@@ -323,6 +337,7 @@ function TeamPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [editingAvatarUrl, setEditingAvatarUrl] = useState(null)
+  const [activeTab, setActiveTab] = useState('personal')
   const [form, setForm] = useState(EMPTY_FORM)
   const [formError, setFormError] = useState('')
   const [avatarError, setAvatarError] = useState('')
@@ -378,6 +393,7 @@ function TeamPage() {
     setForm(EMPTY_FORM)
     setFormError('')
     setAvatarError('')
+    setActiveTab('personal')
     setModalOpen(true)
   }
 
@@ -397,6 +413,7 @@ function TeamPage() {
     })
     setFormError('')
     setAvatarError('')
+    setActiveTab('personal')
     setModalOpen(true)
   }
 
@@ -416,9 +433,28 @@ function TeamPage() {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
+  // Required fields are spread across tabs that stay mounted-but-hidden (see TabPanel),
+  // so the browser only enforces `required` for whichever tab is currently visible —
+  // this catches an empty required field on a tab the user never switched to.
+  function validateForm() {
+    if (!form.name.trim()) return { tab: 'personal', message: 'El nombre es requerido.' }
+    if (!form.email.trim()) return { tab: 'personal', message: 'El correo es requerido.' }
+    if (!editingId && !form.password) return { tab: 'personal', message: 'La contraseña temporal es requerida.' }
+    if (showCommission && form.commissionRate === '') return { tab: 'pago', message: 'La comisión es requerida.' }
+    if (showBaseSalary && form.baseSalary === '') return { tab: 'pago', message: 'El salario base es requerido.' }
+    return null
+  }
+
   function handleSubmit(e) {
     e.preventDefault()
     setFormError('')
+
+    const invalid = validateForm()
+    if (invalid) {
+      setActiveTab(invalid.tab)
+      setFormError(invalid.message)
+      return
+    }
 
     if (editingId) {
       const payload = {
@@ -517,121 +553,143 @@ function TeamPage() {
         onClose={() => setModalOpen(false)}
         title={editingId ? 'Editar profesional' : 'Nuevo profesional'}
       >
-        <form onSubmit={handleSubmit} className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto pr-1">
-          {editingId && (
-            <div className="flex items-center gap-4">
-              {editingAvatarUrl ? (
-                <img
-                  src={resolveAssetUrl(editingAvatarUrl)}
-                  alt=""
-                  className="h-16 w-16 shrink-0 rounded-full object-cover"
-                />
-              ) : (
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-surface-2 text-lg font-medium text-ink">
-                  {initials(form.name || '?')}
-                </div>
-              )}
-              <div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="hidden"
-                  onChange={handleAvatarPick}
-                />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={avatarMutation.isPending}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Camera size={14} />
-                  {avatarMutation.isPending ? 'Subiendo...' : 'Cambiar foto'}
-                </Button>
-                {avatarError && <p className="mt-1.5 text-xs text-danger">{avatarError}</p>}
-              </div>
-            </div>
-          )}
-
-          {editingId && (
-            <div>
-              <p className="mb-2 text-sm font-medium text-muted">Portafolio de trabajos</p>
-              {portfolioPhotos.length === 0 ? (
-                <p className="flex items-center gap-2 text-xs text-muted">
-                  <ImageIcon size={14} />
-                  Este profesional aún no ha subido fotos.
-                </p>
-              ) : (
-                <div className="grid grid-cols-4 gap-2">
-                  {portfolioPhotos.map((p) => (
-                    <div key={p._id} className="group relative aspect-square overflow-hidden rounded-lg bg-surface-2">
-                      <img src={resolveAssetUrl(p.imageUrl)} alt="" className="h-full w-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => deletePhotoMutation.mutate(p._id)}
-                        aria-label="Eliminar foto"
-                        className="absolute right-1 top-1 rounded-md bg-bg/80 p-1 text-muted backdrop-blur transition-opacity hover:text-danger sm:opacity-0 sm:group-hover:opacity-100"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          <Input id="name" name="name" label="Nombre" placeholder="Nombre completo" value={form.name} onChange={handleChange} required />
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            label="Correo"
-            placeholder="correo@ejemplo.com"
-            value={form.email}
-            onChange={handleChange}
-            readOnly={Boolean(editingId)}
-            required
-          />
-          <Input id="phone" name="phone" label="Teléfono" placeholder="300 123 4567" value={form.phone} onChange={handleChange} />
-          {!editingId && (
-            <Input id="password" name="password" type="password" label="Contraseña temporal" placeholder="••••••••" value={form.password} onChange={handleChange} required />
-          )}
-
-          <Select id="paymentScheme" name="paymentScheme" label="Esquema de pago" value={form.paymentScheme} onChange={handleChange}>
-            {PAYMENT_SCHEMES.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label}
-              </option>
+        <form onSubmit={handleSubmit} className="flex max-h-[70vh] flex-col gap-4">
+          <div className="flex gap-1 rounded-lg bg-surface-2 p-1">
+            {BARBER_FORM_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 rounded-md py-1.5 text-xs font-medium transition-colors ${
+                  activeTab === tab.id ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink'
+                }`}
+              >
+                {tab.label}
+              </button>
             ))}
-          </Select>
-
-          <div className="grid grid-cols-2 gap-3">
-            {showCommission && (
-              <Input id="commissionRate" name="commissionRate" type="number" min="0" max="100" label="Comisión (%)" placeholder="50" value={form.commissionRate} onChange={handleChange} required />
-            )}
-            {showBaseSalary && (
-              <Input id="baseSalary" name="baseSalary" type="number" min="0" label="Salario base (COP)" placeholder="500000" value={form.baseSalary} onChange={handleChange} required />
-            )}
           </div>
 
-          <div>
-            <p className="mb-2 text-sm font-medium text-muted">Horario semanal</p>
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
+          <TabPanel active={activeTab === 'personal'}>
+            {editingId && (
+              <div className="flex items-center gap-4">
+                {editingAvatarUrl ? (
+                  <img
+                    src={resolveAssetUrl(editingAvatarUrl)}
+                    alt=""
+                    className="h-16 w-16 shrink-0 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-surface-2 text-lg font-medium text-ink">
+                    {initials(form.name || '?')}
+                  </div>
+                )}
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={handleAvatarPick}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={avatarMutation.isPending}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Camera size={14} />
+                    {avatarMutation.isPending ? 'Subiendo...' : 'Cambiar foto'}
+                  </Button>
+                  {avatarError && <p className="mt-1.5 text-xs text-danger">{avatarError}</p>}
+                </div>
+              </div>
+            )}
+
+            {editingId && (
+              <div>
+                <p className="mb-2 text-sm font-medium text-muted">Portafolio de trabajos</p>
+                {portfolioPhotos.length === 0 ? (
+                  <p className="flex items-center gap-2 text-xs text-muted">
+                    <ImageIcon size={14} />
+                    Este profesional aún no ha subido fotos.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-4 gap-2">
+                    {portfolioPhotos.map((p) => (
+                      <div key={p._id} className="group relative aspect-square overflow-hidden rounded-lg bg-surface-2">
+                        <img src={resolveAssetUrl(p.imageUrl)} alt="" className="h-full w-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => deletePhotoMutation.mutate(p._id)}
+                          aria-label="Eliminar foto"
+                          className="absolute right-1 top-1 rounded-md bg-bg/80 p-1 text-muted backdrop-blur transition-opacity hover:text-danger sm:opacity-0 sm:group-hover:opacity-100"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <Input id="name" name="name" label="Nombre" placeholder="Nombre completo" value={form.name} onChange={handleChange} required />
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              label="Correo"
+              placeholder="correo@ejemplo.com"
+              value={form.email}
+              onChange={handleChange}
+              readOnly={Boolean(editingId)}
+              required
+            />
+            <Input id="phone" name="phone" label="Teléfono" placeholder="300 123 4567" value={form.phone} onChange={handleChange} />
+            {!editingId && (
+              <Input id="password" name="password" type="password" label="Contraseña temporal" placeholder="••••••••" value={form.password} onChange={handleChange} required />
+            )}
+          </TabPanel>
+
+          <TabPanel active={activeTab === 'pago'}>
+            <Select id="paymentScheme" name="paymentScheme" label="Esquema de pago" value={form.paymentScheme} onChange={handleChange}>
+              {PAYMENT_SCHEMES.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </Select>
+
+            {(showCommission || showBaseSalary) && (
+              <div className="grid grid-cols-2 gap-3">
+                {showCommission && (
+                  <Input id="commissionRate" name="commissionRate" type="number" min="0" max="100" label="Comisión (%)" placeholder="50" value={form.commissionRate} onChange={handleChange} required />
+                )}
+                {showBaseSalary && (
+                  <Input id="baseSalary" name="baseSalary" type="number" min="0" label="Salario base (COP)" placeholder="500000" value={form.baseSalary} onChange={handleChange} required />
+                )}
+              </div>
+            )}
+          </TabPanel>
+
+          <TabPanel active={activeTab === 'horario'}>
             <WeeklyScheduleEditor value={form.schedule} onChange={(schedule) => setForm({ ...form, schedule })} />
-          </div>
 
-          <ServicesPicker
-            key={editingId || 'new'}
-            value={form.services}
-            onChange={(services) => setForm({ ...form, services })}
-            services={allServices}
-          />
+            <ServicesPicker
+              key={editingId || 'new'}
+              value={form.services}
+              onChange={(services) => setForm({ ...form, services })}
+              services={allServices}
+            />
+          </TabPanel>
+          </div>
 
           {formError && (
             <p className="rounded-lg border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-sm text-danger">{formError}</p>
           )}
 
-          <Button type="submit" disabled={saving} className="mt-2 w-full">
+          <Button type="submit" disabled={saving} className="w-full">
             {saving ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Agregar profesional'}
           </Button>
         </form>

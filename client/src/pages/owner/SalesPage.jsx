@@ -31,7 +31,7 @@ function todayRange() {
   return { from: start.toISOString(), to: end.toISOString() }
 }
 
-function CatalogGrid({ items, onAdd, priceKey = 'price' }) {
+export function CatalogGrid({ items, onAdd, priceKey = 'price' }) {
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
       {items.map((item) => (

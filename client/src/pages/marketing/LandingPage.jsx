@@ -6,15 +6,24 @@ import {
   BarChart3,
   Users,
   Smartphone,
+  MessageCircle,
   ShieldCheck,
+  X,
   ArrowRight,
   Star,
   ChevronDown,
+  DollarSign,
+  TrendingUp,
 } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import Logo from '../../components/ui/Logo'
 import ThemeToggle from '../../components/ui/ThemeToggle'
+import Switch from '../../components/ui/Switch'
+import StatTile from '../../components/ui/StatTile'
+import RankedBarList from '../../components/reports/RankedBarList'
+import StaffCalendarView from '../../components/appointments/StaffCalendarView'
+import { CatalogGrid } from '../owner/SalesPage'
 import { useTheme } from '../../context/ThemeContext'
 import { formatCOP } from '../../lib/format'
 
@@ -30,38 +39,194 @@ function themedSrc(name, theme) {
   return `/landing/${name}${theme === 'light' ? '-light' : ''}.png`
 }
 
+// Real payoff data for the "Sabe si estás ganando o perdiendo" preview — same shape
+// StatTile/RankedBarList already take on the real Reportes page.
+const DEMO_INCOME = 4850000
+const DEMO_PROFIT = 2100000
+const DEMO_SERVICES = [
+  { label: 'Corte + Barba', value: 1620000 },
+  { label: 'Color', value: 980000 },
+  { label: 'Corte clásico', value: 740000 },
+]
+
+// Made-up names, not any real professional — same fields TeamPage.jsx reads.
+const DEMO_TEAM = [
+  { name: 'Sebastián Ríos', paymentScheme: 'commission', commissionRate: 50, active: true },
+  { name: 'Mateo Salazar', paymentScheme: 'fixed', baseSalary: 1200000, active: true },
+  { name: 'Andrés Vélez', paymentScheme: 'mixed', baseSalary: 600000, commissionRate: 30, active: false },
+]
+
+// Same paymentSummary logic TeamPage.jsx uses for its real list, duplicated here —
+// `initials` below already exists further down this file and is reused as-is.
+function paymentSummary(barber) {
+  if (barber.paymentScheme === 'fixed') return `Fijo · ${formatCOP(barber.baseSalary || 0)}`
+  if (barber.paymentScheme === 'commission') return `Comisión · ${barber.commissionRate}%`
+  return `Mixto · ${formatCOP(barber.baseSalary || 0)} + ${barber.commissionRate}%`
+}
+
+// Made-up names, not any real professional — same fields AppointmentsPage.jsx builds
+// for StaffCalendarView's events prop.
+const DEMO_BARBERS = [
+  { id: 'demo-a', name: 'Sebastián Ríos' },
+  { id: 'demo-b', name: 'Mateo Salazar' },
+]
+
+function demoTime(hour, minute = 0) {
+  const d = new Date()
+  d.setHours(hour, minute, 0, 0)
+  return d
+}
+
+const DEMO_EVENTS = [
+  { id: 'e1', resourceId: 'demo-a', customer: 'Juan Pérez', service: 'Corte + Barba', status: 'confirmed', start: demoTime(9, 0), end: demoTime(9, 45) },
+  { id: 'e2', resourceId: 'demo-a', customer: 'Andrés Ruiz', service: 'Corte clásico', status: 'completed', start: demoTime(10, 0), end: demoTime(10, 30) },
+  { id: 'e3', resourceId: 'demo-a', customer: 'María Gómez', service: 'Color', status: 'cancelled', cancelledBy: 'customer', start: demoTime(11, 0), end: demoTime(12, 0) },
+  { id: 'e4', resourceId: 'demo-b', customer: 'Camila Torres', service: 'Barba', status: 'pending', start: demoTime(9, 30), end: demoTime(10, 0) },
+  { id: 'e5', resourceId: 'demo-b', customer: 'Kevin Ortiz', service: 'Corte + Barba', status: 'confirmed', start: demoTime(11, 0), end: demoTime(11, 45) },
+]
+
+// Renders the real day-view calendar (react-big-calendar is already in the bundle —
+// AppointmentsPage.jsx uses this same component, so this adds no extra weight).
+// Only here, minTime/maxTime narrow the visible range to a 3-hour window that fits
+// every demo event (9:00-12:00) exactly within `height` — the library's time grid
+// scrolls internally whenever content is taller than its container, so the only way
+// to remove that scrollbar (rather than just resetting its position) is to make sure
+// nothing overflows in the first place. The real Agenda page is untouched — it never
+// passes these props, so it keeps the full 24h with normal scrolling.
+function AgendaPreview() {
+  return (
+    <Card className="p-4">
+      <StaffCalendarView
+        date={new Date()}
+        onNavigate={() => {}}
+        resources={DEMO_BARBERS}
+        events={DEMO_EVENTS}
+        height={390}
+        minTime={demoTime(9, 0)}
+        maxTime={demoTime(12, 0)}
+      />
+    </Card>
+  )
+}
+
+// Real catalog + ticket data for the "Ventas" preview.
+const DEMO_CATALOG = [
+  { _id: 's1', name: 'Corte clásico', price: 25000 },
+  { _id: 's2', name: 'Barba', price: 15000 },
+  { _id: 's3', name: 'Color', price: 60000 },
+]
+const DEMO_TICKET = [
+  { itemType: 'Service', itemId: 's1', name: 'Corte clásico', unitPrice: 25000, quantity: 1 },
+  { itemType: 'Service', itemId: 's2', name: 'Barba', unitPrice: 15000, quantity: 1 },
+]
+const DEMO_TICKET_TOTAL = DEMO_TICKET.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0)
+
+// CatalogGrid is the real, exported component from SalesPage.jsx — the ticket list
+// below matches that page's markup exactly, since it isn't split into its own
+// component there yet.
+function VentasPreview() {
+  return (
+    <div className="flex flex-col gap-4">
+      <Card>
+        <h3 className="text-sm font-medium text-muted">Catálogo</h3>
+        <div className="mt-4">
+          <CatalogGrid items={DEMO_CATALOG} onAdd={() => {}} />
+        </div>
+      </Card>
+      <Card>
+        <div className="flex items-center gap-2">
+          <ShoppingCart size={16} className="text-muted" />
+          <h3 className="text-sm font-medium text-muted">Ticket actual</h3>
+        </div>
+        <div className="mt-4 flex flex-col divide-y divide-border">
+          {DEMO_TICKET.map((item) => (
+            <div key={item.itemId} className="flex items-center gap-2 py-3 first:pt-0 last:pb-0">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-ink">{item.name}</p>
+                <p className="text-xs text-muted">{formatCOP(item.unitPrice)}</p>
+              </div>
+              <span className="w-5 text-center text-sm tabular-nums text-ink">{item.quantity}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+          <span className="text-sm font-medium text-muted">Total</span>
+          <span className="text-xl font-semibold tabular-nums text-ink">{formatCOP(DEMO_TICKET_TOTAL)}</span>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+// Renders the actual Reportes UI components with made-up numbers, instead of a
+// screenshot — stays crisp at any width and needs no light/dark twin.
+function ReportesPreview() {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 gap-4">
+        <StatTile label="Ingresos" value={formatCOP(DEMO_INCOME)} delta="+18%" deltaDirection="up" deltaTone="good" icon={DollarSign} />
+        <StatTile label="Utilidad neta" value={formatCOP(DEMO_PROFIT)} delta="+9%" deltaDirection="up" deltaTone="good" icon={TrendingUp} />
+      </div>
+      <Card>
+        <h3 className="text-sm font-medium text-muted">Rentabilidad por servicio</h3>
+        <div className="mt-4">
+          <RankedBarList items={DEMO_SERVICES} valueFormatter={formatCOP} />
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+// Same list-row markup TeamPage.jsx renders for the real team, fed dummy names.
+function EquipoPreview() {
+  return (
+    <Card>
+      <div className="flex flex-col divide-y divide-border">
+        {DEMO_TEAM.map((b) => (
+          <div key={b.name} className="flex items-center gap-4 py-4 first:pt-0 last:pb-0">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-sm font-medium text-ink">
+              {initials(b.name).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-ink">{b.name}</p>
+              <p className="truncate text-xs text-muted">{paymentSummary(b)}</p>
+            </div>
+            <Switch checked={b.active} onChange={() => {}} />
+          </div>
+        ))}
+      </div>
+    </Card>
+  )
+}
+
 const FEATURES = [
   {
     icon: CalendarCheck,
     title: 'Agenda que no se te enreda',
     description:
       'Calendario por profesional, en vivo. Cada cita con su servicio, su cliente y su estado — confirmada, completada, cancelada — de un vistazo.',
-    image: 'agenda',
-    imageAlt: 'Vista de calendario con las citas del día organizadas por profesional',
+    preview: AgendaPreview,
   },
   {
     icon: ShoppingCart,
     title: 'Cobra sin salir de la app',
     description:
       'Registra ventas de servicios y productos, vincúlalas a la cita, y lleva el efectivo, la tarjeta y las transferencias del día sin una hoja de cálculo aparte.',
-    image: 'ventas',
-    imageAlt: 'Punto de venta con servicios, productos y el ticket del día',
+    preview: VentasPreview,
   },
   {
     icon: BarChart3,
     title: 'Sabe si estás ganando o perdiendo',
     description:
       'Ingresos, gastos, nómina y utilidad neta del mes, más qué servicio y qué profesional te está generando más plata.',
-    image: 'reportes',
-    imageAlt: 'Reportes de rentabilidad e ingresos por servicio y por profesional',
+    preview: ReportesPreview,
   },
   {
     icon: Users,
     title: 'Tu equipo, con su propio esquema de pago',
     description:
       'Comisión, sueldo fijo o mixto — cada profesional con su regla, y su nómina calculada sola a partir de lo que realmente vendió.',
-    image: 'equipo',
-    imageAlt: 'Lista del equipo con su esquema de pago',
+    preview: EquipoPreview,
   },
 ]
 
@@ -370,7 +535,7 @@ function LandingPage() {
                     <p className="mt-3 text-muted">{feature.description}</p>
                   </div>
                   <div className="md:w-3/5">
-                    <Screenshot src={themedSrc(feature.image, theme)} alt={feature.imageAlt} />
+                    {feature.preview ? <feature.preview /> : <Screenshot src={themedSrc(feature.image, theme)} alt={feature.imageAlt} />}
                   </div>
                 </Reveal>
               )
@@ -417,6 +582,48 @@ function LandingPage() {
           </Reveal>
         </section>
 
+        {/* WhatsApp notifications */}
+        <section className="mx-auto max-w-6xl px-6 py-20">
+          <Reveal className="flex flex-col items-center gap-12 md:flex-row">
+            <div className="order-2 md:order-1 md:w-1/2">
+              {/* A real WhatsApp screenshot, not a Cortio screen — its look doesn't
+                  change with the site's theme toggle, so unlike the other mockups this
+                  one has no light-mode twin. */}
+              <PhoneMockup
+                src="/landing/whatsapp.png"
+                alt="Conversación de WhatsApp con los avisos de citas que recibe un profesional"
+                className="mx-auto w-full max-w-55"
+              />
+            </div>
+            <div className="order-1 md:order-2 md:w-1/2">
+              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-surface-2 text-ink">
+                <MessageCircle size={20} />
+              </div>
+              <h2 className="mt-4 text-3xl font-semibold tracking-tight text-ink">
+                Tus profesionales se enteran al instante
+              </h2>
+              <p className="mt-3 text-muted">
+                Cada cita queda avisada por WhatsApp directo al celular del profesional — sin que tengas que
+                escribirle tú ni pasarle la agenda del día.
+              </p>
+              <ul className="mt-6 flex flex-col gap-3 text-sm text-ink">
+                <li className="flex items-start gap-2.5">
+                  <ShieldCheck size={16} className="mt-0.5 shrink-0 text-muted" />
+                  Cita nueva, cancelada o reprogramada, al momento
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <ShieldCheck size={16} className="mt-0.5 shrink-0 text-muted" />
+                  Recordatorio automático antes de la hora de la cita
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <ShieldCheck size={16} className="mt-0.5 shrink-0 text-muted" />
+                  Directo al WhatsApp del profesional, sin grupos ni reenvíos manuales
+                </li>
+              </ul>
+            </div>
+          </Reveal>
+        </section>
+
         {/* Testimonials */}
         <section className="mx-auto max-w-6xl px-6 py-20">
           <Reveal className="mx-auto max-w-xl text-center">
@@ -452,8 +659,11 @@ function LandingPage() {
         {/* Pricing */}
         <section id="precio" className="mx-auto max-w-6xl px-6 py-20">
           <Reveal className="mx-auto max-w-xl text-center">
-            <h2 className="text-3xl font-semibold tracking-tight text-ink">Un solo plan, sin letra pequeña</h2>
-            <p className="mt-3 text-muted">Todas las funciones incluidas desde el primer día.</p>
+            <h2 className="text-3xl font-semibold tracking-tight text-ink">Empieza gratis, paga cuando quieras</h2>
+            <p className="mt-3 text-muted">
+              Todas las funciones incluidas desde el primer día — el plan pago solo suma las notificaciones de
+              WhatsApp.
+            </p>
           </Reveal>
 
           <Reveal className="mx-auto mt-8 flex max-w-3xl justify-center">
@@ -486,7 +696,38 @@ function LandingPage() {
             </div>
           </Reveal>
 
-          <Reveal className="mx-auto mt-8 max-w-md">
+          <Reveal className="mx-auto mt-8 grid max-w-3xl grid-cols-1 gap-6 md:grid-cols-2">
+            <Card className="flex flex-col text-center">
+              <p className="text-sm font-medium text-muted">Plan gratis</p>
+              <p className="mt-2 text-5xl font-semibold tracking-tight text-ink">$0</p>
+              <p className="mt-1 text-sm text-muted">por {TRIAL_DAYS} días, sin tarjeta</p>
+
+              <ul className="mt-8 flex flex-col gap-3 text-left text-sm text-ink">
+                <li className="flex items-center gap-2.5">
+                  <ShieldCheck size={16} className="text-muted" />
+                  Profesionales y clientes ilimitados
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <ShieldCheck size={16} className="text-muted" />
+                  Agenda, ventas, nómina, inventario y reportes
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <ShieldCheck size={16} className="text-muted" />
+                  Página pública de reservas incluida
+                </li>
+                <li className="flex items-center gap-2.5 text-muted">
+                  <X size={16} className="shrink-0" />
+                  Sin notificaciones de WhatsApp
+                </li>
+              </ul>
+
+              <Link to="/register" className="mt-8 block">
+                <Button variant="secondary" className="w-full py-3 text-base">
+                  Crear cuenta gratis
+                </Button>
+              </Link>
+            </Card>
+
             <Card className="flex flex-col text-center">
               <p className="text-sm font-medium text-muted">
                 {billingCycle === 'annual' ? 'Plan anual' : 'Plan mensual'}
@@ -503,15 +744,7 @@ function LandingPage() {
               <ul className="mt-8 flex flex-col gap-3 text-left text-sm text-ink">
                 <li className="flex items-center gap-2.5">
                   <ShieldCheck size={16} className="text-muted" />
-                  Profesionales y clientes ilimitados
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <ShieldCheck size={16} className="text-muted" />
-                  Agenda, ventas, nómina, inventario y reportes
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <ShieldCheck size={16} className="text-muted" />
-                  Página pública de reservas incluida
+                  Todo lo del plan gratis
                 </li>
                 <li className="flex items-center gap-2.5">
                   <ShieldCheck size={16} className="text-muted" />
@@ -519,23 +752,23 @@ function LandingPage() {
                 </li>
                 <li className="flex items-center gap-2.5">
                   <ShieldCheck size={16} className="text-muted" />
-                  {TRIAL_DAYS} días de prueba gratis, sin tarjeta
+                  Cita nueva, cancelada, reprogramada y recordatorio
                 </li>
               </ul>
 
-              <p className="mt-3 text-xs text-muted">
-                WhatsApp avisa a tus profesionales de cada cita nueva, cancelada, reprogramada y con recordatorio
-                antes de la hora — se activa al pasar a la versión de pago, no está incluido en la prueba gratis.
-              </p>
-
               <Link to="/register" className="mt-8 block">
                 <Button className="w-full py-3 text-base">
-                  Empieza gratis
+                  Empieza gratis por {TRIAL_DAYS} días
                   <ArrowRight size={16} />
                 </Button>
               </Link>
             </Card>
           </Reveal>
+
+          <p className="mx-auto mt-6 max-w-md text-center text-xs text-muted">
+            Los {TRIAL_DAYS} días de prueba aplican para cualquiera de los dos — puedes activar el plan pago cuando
+            quieras desde el panel, y WhatsApp se enciende automáticamente al hacerlo.
+          </p>
         </section>
 
         {/* FAQ */}

@@ -14,3 +14,18 @@ export async function getByService(params = {}) {
   const { data } = await apiClient.get('/reports/by-service', { params })
   return data
 }
+
+export async function getCancellations(params = {}) {
+  const { data } = await apiClient.get('/reports/cancellations', { params })
+  return data
+}
+
+export async function getRatings(params = {}) {
+  const { data } = await apiClient.get('/reports/ratings', { params })
+  return data
+}
+
+export async function getRecentReviews(params = {}) {
+  const { data } = await apiClient.get('/reports/recent-reviews', { params })
+  return data
+}
