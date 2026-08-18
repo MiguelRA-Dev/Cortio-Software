@@ -1,11 +1,11 @@
 # Cortio
 
-Mini ERP + agendador de citas para barberías, construido con stack MERN (MongoDB, Express, React, Node).
+Agendador de citas para barberías, construido con stack MERN (MongoDB, Express, React, Node).
 
 ## Estructura
 
 ```
-├── client/   # React web app (fase pendiente)
+├── client/
 ├── server/   # API REST (Express + Mongoose)
 ```
 
