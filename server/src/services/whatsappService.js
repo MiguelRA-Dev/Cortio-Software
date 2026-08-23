@@ -42,6 +42,18 @@ function isPaidSubscription(subscriptionStatus) {
   return subscriptionStatus === PAID_STATUS;
 }
 
+// Second half of the send gate: the shop paying doesn't override an individual
+// professional's own choice to turn their WhatsApp notifications off (User.
+// whatsappNotificationsEnabled, defaults true) — a barber can opt out for themselves
+// even while the rest of the team keeps receiving messages normally. Combined with
+// isPaidSubscription above, this is still the single choke point every notifyX
+// function below funnels through.
+function shouldNotify({ subscriptionStatus, barber }) {
+  if (!isPaidSubscription(subscriptionStatus)) return false;
+  if (barber?.whatsappNotificationsEnabled === false) return false;
+  return true;
+}
+
 // Never throws — a missing/invalid phone, an unapproved template, or a Meta API outage
 // should log and move on, not break the appointment flow that triggered it (same
 // reasoning as emailService's sendEmail).
@@ -91,7 +103,7 @@ async function sendTemplateMessage({ to, template, languageCode = 'es_CO', compo
 }
 
 async function notifyAppointmentCreated({ barber, customer, service, startTime, subscriptionStatus }) {
-  if (!isPaidSubscription(subscriptionStatus)) return null;
+  if (!shouldNotify({ subscriptionStatus, barber })) return null;
   const { date, time } = formatBogota(startTime);
   return sendTemplateMessage({
     to: barber.phone,
@@ -103,7 +115,7 @@ async function notifyAppointmentCreated({ barber, customer, service, startTime, 
 }
 
 async function notifyAppointmentCancelled({ barber, customer, service, startTime, subscriptionStatus }) {
-  if (!isPaidSubscription(subscriptionStatus)) return null;
+  if (!shouldNotify({ subscriptionStatus, barber })) return null;
   const { date, time } = formatBogota(startTime);
   return sendTemplateMessage({
     to: barber.phone,
@@ -115,7 +127,7 @@ async function notifyAppointmentCancelled({ barber, customer, service, startTime
 }
 
 async function notifyAppointmentRescheduled({ barber, customer, service, startTime, subscriptionStatus }) {
-  if (!isPaidSubscription(subscriptionStatus)) return null;
+  if (!shouldNotify({ subscriptionStatus, barber })) return null;
   const { date, time } = formatBogota(startTime);
   return sendTemplateMessage({
     to: barber.phone,
@@ -127,7 +139,7 @@ async function notifyAppointmentRescheduled({ barber, customer, service, startTi
 }
 
 async function notifyAppointmentReminder({ barber, customer, service, startTime, subscriptionStatus }) {
-  if (!isPaidSubscription(subscriptionStatus)) return null;
+  if (!shouldNotify({ subscriptionStatus, barber })) return null;
   const { time } = formatBogota(startTime);
   return sendTemplateMessage({
     to: barber.phone,

@@ -47,6 +47,7 @@ const EMPTY_FORM = {
   baseSalary: '',
   schedule: [],
   services: [],
+  whatsappNotificationsEnabled: true,
 }
 
 // Shared by the barber modal and OwnerAvailabilityCard — both back the same
@@ -144,6 +145,7 @@ function OwnerAvailabilityCard() {
   const queryClient = useQueryClient()
   const [schedule, setSchedule] = useState(user.schedule || [])
   const [services, setServices] = useState(user.services || [])
+  const [whatsappNotificationsEnabled, setWhatsappNotificationsEnabled] = useState(user.whatsappNotificationsEnabled !== false)
   const [saved, setSaved] = useState(false)
   const [avatarError, setAvatarError] = useState('')
   const [photoError, setPhotoError] = useState('')
@@ -165,7 +167,7 @@ function OwnerAvailabilityCard() {
   })
 
   const profileMutation = useMutation({
-    mutationFn: () => updateMe({ schedule, services }),
+    mutationFn: () => updateMe({ schedule, services, whatsappNotificationsEnabled }),
     onSuccess: (updatedUser) => {
       updateUser(updatedUser)
       setSaved(true)
@@ -233,6 +235,14 @@ function OwnerAvailabilityCard() {
 
           <div className="border-t border-border pt-4">
             <ServicesPicker value={services} onChange={setServices} services={allServices} />
+          </div>
+
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-surface-2 p-3">
+            <div>
+              <p className="text-sm font-medium text-ink">Notificaciones de WhatsApp</p>
+              <p className="mt-0.5 text-xs text-muted">Avisos de citas nuevas, canceladas y recordatorios.</p>
+            </div>
+            <Switch checked={whatsappNotificationsEnabled} onChange={setWhatsappNotificationsEnabled} />
           </div>
 
           <div className="flex items-center gap-3">
@@ -410,6 +420,7 @@ function TeamPage() {
       baseSalary: barber.baseSalary ?? '',
       schedule: barber.schedule || [],
       services: barber.services || [],
+      whatsappNotificationsEnabled: barber.whatsappNotificationsEnabled !== false,
     })
     setFormError('')
     setAvatarError('')
@@ -465,6 +476,7 @@ function TeamPage() {
         baseSalary: form.baseSalary ? Number(form.baseSalary) : null,
         schedule: form.schedule,
         services: form.services,
+        whatsappNotificationsEnabled: form.whatsappNotificationsEnabled,
       }
       updateMutation.mutate({ id: editingId, payload })
     } else {
@@ -478,6 +490,7 @@ function TeamPage() {
         baseSalary: form.baseSalary ? Number(form.baseSalary) : undefined,
         schedule: form.schedule,
         services: form.services,
+        whatsappNotificationsEnabled: form.whatsappNotificationsEnabled,
       }
       createMutation.mutate(payload)
     }
@@ -647,6 +660,18 @@ function TeamPage() {
               required
             />
             <Input id="phone" name="phone" label="Teléfono" placeholder="300 123 4567" value={form.phone} onChange={handleChange} />
+
+            <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-surface-2 p-3">
+              <div>
+                <p className="text-sm font-medium text-ink">Notificaciones de WhatsApp</p>
+                <p className="mt-0.5 text-xs text-muted">Avisos de citas nuevas, canceladas y recordatorios.</p>
+              </div>
+              <Switch
+                checked={form.whatsappNotificationsEnabled}
+                onChange={(v) => setForm({ ...form, whatsappNotificationsEnabled: v })}
+              />
+            </div>
+
             {!editingId && (
               <Input id="password" name="password" type="password" label="Contraseña temporal" placeholder="••••••••" value={form.password} onChange={handleChange} required />
             )}

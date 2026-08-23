@@ -18,7 +18,10 @@ async function runReminderJob() {
     reminderSentAt: { $exists: false },
     startTime: { $gt: now, $lte: windowEnd }
   })
-    .populate('barber', 'phone')
+    // whatsappNotificationsEnabled has to be selected here too, not just phone —
+    // shouldNotify() in whatsappService.js reads it, and an unselected field would
+    // silently read as `undefined`, not `false`, defeating a barber's opt-out.
+    .populate('barber', 'phone whatsappNotificationsEnabled')
     .populate('customer', 'name')
     .populate('service', 'name')
     .populate('barbershop', 'subscriptionStatus');

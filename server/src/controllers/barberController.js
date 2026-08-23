@@ -60,7 +60,7 @@ const listPublicBarbers = asyncHandler(async (req, res) => {
   res.json(enriched);
 });
 
-const ALLOWED_UPDATE_FIELDS = ['name', 'phone', 'avatarUrl', 'paymentScheme', 'commissionRate', 'baseSalary', 'schedule', 'scheduleExceptions', 'active', 'services'];
+const ALLOWED_UPDATE_FIELDS = ['name', 'phone', 'avatarUrl', 'paymentScheme', 'commissionRate', 'baseSalary', 'schedule', 'scheduleExceptions', 'active', 'services', 'whatsappNotificationsEnabled'];
 
 const updateBarber = asyncHandler(async (req, res) => {
   const barber = await User.findOne({ _id: req.params.id, barbershop: req.user.barbershop, role: 'barber' });

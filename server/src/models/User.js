@@ -52,7 +52,13 @@ const userSchema = new mongoose.Schema({
   // Empty (default) = no restriction, can perform every active service in the shop.
   // Non-empty = restricted to only these. Same permissive-by-default style as
   // Service.active — no existing barber becomes unbookable the moment this ships.
-  services: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Service' }]
+  services: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Service' }],
+
+  // Only meaningful for a barber, or an owner with attendsClients — whether they
+  // personally want the WhatsApp appointment alerts (see whatsappService.js's
+  // shouldNotify). Defaults true so existing professionals keep getting notified exactly
+  // as before; this is an opt-out, not an opt-in.
+  whatsappNotificationsEnabled: { type: Boolean, default: true }
 }, { timestamps: true });
 
 // Sparse so barbers/customers (who never set this) don't collide on a shared null value.

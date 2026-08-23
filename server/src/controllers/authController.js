@@ -203,7 +203,7 @@ const registerBarbershop = asyncHandler(async (req, res) => {
 });
 
 const registerBarber = asyncHandler(async (req, res) => {
-  const { name, email, password, phone, paymentScheme, commissionRate, baseSalary, schedule, services } = req.body;
+  const { name, email, password, phone, paymentScheme, commissionRate, baseSalary, schedule, services, whatsappNotificationsEnabled } = req.body;
 
   if (!name || !email || !password || !paymentScheme) {
     throw new ApiError(400, 'name, email, password y paymentScheme son requeridos');
@@ -229,7 +229,8 @@ const registerBarber = asyncHandler(async (req, res) => {
     commissionRate,
     baseSalary,
     schedule,
-    services
+    services,
+    whatsappNotificationsEnabled
   });
 
   res.status(201).json(sanitizeUser(barber));
@@ -435,6 +436,14 @@ const updateMe = asyncHandler(async (req, res) => {
       updates.emailVerified = false;
     }
     updates.email = normalizedEmail;
+  }
+
+  // Any role can toggle this on themselves (barbers directly; owners when they attend
+  // clients) — the owner can also set it for a barber via PATCH /api/barbers/:id, so a
+  // professional isn't stuck with whatever the owner picked if they'd rather manage it
+  // themselves.
+  if (req.body.whatsappNotificationsEnabled !== undefined) {
+    updates.whatsappNotificationsEnabled = Boolean(req.body.whatsappNotificationsEnabled);
   }
 
   // Only the owner has a bookable-as-professional toggle + schedule on their own account

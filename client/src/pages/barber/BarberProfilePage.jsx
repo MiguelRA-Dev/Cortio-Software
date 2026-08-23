@@ -6,11 +6,13 @@ import Button from '../../components/ui/Button'
 import Modal from '../../components/ui/Modal'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
+import Switch from '../../components/ui/Switch'
 import { resolveAssetUrl } from '../../lib/assets'
 import { useAuth } from '../../context/AuthContext'
 import { uploadBarberAvatar } from '../../api/barbers'
 import { listServices } from '../../api/services'
 import { listMyPortfolio, createPortfolioPhoto, deletePortfolioPhoto } from '../../api/portfolio'
+import { updateMe } from '../../api/auth'
 
 const EMPTY_UPLOAD_FORM = { serviceId: '', description: '' }
 
@@ -36,6 +38,11 @@ function BarberProfilePage() {
       updateUser({ ...user, avatarUrl: updatedBarber.avatarUrl })
     },
     onError: (err) => setAvatarError(err.response?.data?.error || 'No pudimos subir la foto.'),
+  })
+
+  const notificationsMutation = useMutation({
+    mutationFn: (whatsappNotificationsEnabled) => updateMe({ whatsappNotificationsEnabled }),
+    onSuccess: (updatedUser) => updateUser(updatedUser),
   })
 
   function handleAvatarPick(e) {
@@ -137,6 +144,21 @@ function BarberProfilePage() {
             </Button>
             {avatarError && <p className="mt-1.5 text-xs text-danger">{avatarError}</p>}
           </div>
+        </div>
+      </Card>
+
+      <Card className="mt-6">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-medium text-ink">Notificaciones de WhatsApp</h3>
+            <p className="mt-1 text-xs text-muted">
+              Recibe un mensaje cuando te agendan, cancelan o reprograman una cita, y un recordatorio antes de la hora.
+            </p>
+          </div>
+          <Switch
+            checked={user.whatsappNotificationsEnabled !== false}
+            onChange={(v) => notificationsMutation.mutate(v)}
+          />
         </div>
       </Card>
 

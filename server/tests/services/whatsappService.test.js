@@ -156,3 +156,65 @@ describe('whatsappService notify* functions gate on a paid (active) subscription
     });
   }
 });
+
+// A professional's own opt-out (User.whatsappNotificationsEnabled) is the second half
+// of the send gate — it must block a send even when the shop is on a paid plan, and it
+// must default to sending (undefined, same as an existing barber who never touched the
+// setting) so this didn't silently mute anyone the moment it shipped.
+describe('whatsappService notify* functions also honor the barber\'s own opt-out', () => {
+  const baseContext = {
+    customer: { name: 'Juan Pérez' },
+    service: { name: 'Corte clásico' },
+    startTime: new Date('2026-08-25T14:00:00.000Z'),
+    subscriptionStatus: 'active',
+  };
+
+  beforeEach(() => {
+    process.env.WHATSAPP_ACCESS_TOKEN = 'test-token';
+    process.env.WHATSAPP_PHONE_NUMBER_ID = '123456';
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function stubFetch() {
+    const fn = vi.fn(async () => ({ ok: true, json: async () => ({}) }));
+    vi.stubGlobal('fetch', fn);
+    return fn;
+  }
+
+  const NOTIFY_FNS = {
+    notifyAppointmentCreated,
+    notifyAppointmentCancelled,
+    notifyAppointmentRescheduled,
+    notifyAppointmentReminder,
+  };
+
+  for (const [name, fn] of Object.entries(NOTIFY_FNS)) {
+    it(`${name}: does not send when the barber turned notifications off`, async () => {
+      const fetchMock = stubFetch();
+      const result = await fn({
+        ...baseContext,
+        barber: { phone: '3134167377', whatsappNotificationsEnabled: false },
+      });
+      expect(result).toBeNull();
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it(`${name}: sends when the barber explicitly left notifications on`, async () => {
+      const fetchMock = stubFetch();
+      await fn({
+        ...baseContext,
+        barber: { phone: '3134167377', whatsappNotificationsEnabled: true },
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it(`${name}: sends by default for a barber who never touched the setting (undefined)`, async () => {
+      const fetchMock = stubFetch();
+      await fn({ ...baseContext, barber: { phone: '3134167377' } });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+  }
+});

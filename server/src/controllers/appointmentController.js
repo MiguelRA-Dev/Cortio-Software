@@ -15,10 +15,13 @@ const {
 } = require('../services/whatsappService');
 
 // Fetches just the fields the WhatsApp templates need, without disturbing the raw
-// ObjectId fields callers already used for authorization checks above.
+// ObjectId fields callers already used for authorization checks above. `phone` and
+// `whatsappNotificationsEnabled` both have to be selected here — shouldNotify() reads
+// the latter, and a barber populated without it would silently look like they never
+// opted out, since `undefined === false` is false.
 async function loadNotificationContext(appointmentId) {
   return Appointment.findById(appointmentId)
-    .populate('barber', 'phone')
+    .populate('barber', 'phone whatsappNotificationsEnabled')
     .populate('customer', 'name')
     .populate('service', 'name')
     .populate('barbershop', 'subscriptionStatus');

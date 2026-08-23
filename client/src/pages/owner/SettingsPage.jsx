@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import QRCode from 'qrcode'
-import { Copy, Check, Camera, Store, ShieldCheck, ShieldAlert, TriangleAlert, MessageCircle } from 'lucide-react'
+import { Camera, Store, ShieldCheck, ShieldAlert, TriangleAlert, MessageCircle } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
@@ -19,7 +18,6 @@ import {
 import { updateMe, resendVerification } from '../../api/auth'
 import { resolveAssetUrl } from '../../lib/assets'
 
-const BOOKING_BASE_URL = window.location.origin + '/b'
 const SUPPORT_WHATSAPP_NUMBER = '573118205548'
 
 function SettingsPage() {
@@ -29,8 +27,6 @@ function SettingsPage() {
 
   const [form, setForm] = useState({ name: '', location: '', address: '', addressDetails: '', phone: '' })
   const [businessHours, setBusinessHours] = useState([])
-  const [qrDataUrl, setQrDataUrl] = useState('')
-  const [copied, setCopied] = useState(false)
   const [saved, setSaved] = useState(false)
 
   const [slugInput, setSlugInput] = useState('')
@@ -57,15 +53,6 @@ function SettingsPage() {
       setSlugInput(barbershop.slug)
     }
   }, [barbershop])
-
-  const bookingUrl = barbershop ? `${BOOKING_BASE_URL}/${barbershop.slug}` : ''
-
-  useEffect(() => {
-    if (!bookingUrl) return
-    QRCode.toDataURL(bookingUrl, { margin: 1, width: 160 })
-      .then(setQrDataUrl)
-      .catch(() => setQrDataUrl(''))
-  }, [bookingUrl])
 
   const updateMutation = useMutation({
     mutationFn: updateMyBarbershop,
@@ -155,12 +142,6 @@ function SettingsPage() {
     },
   })
 
-  function handleCopy() {
-    navigator.clipboard.writeText(bookingUrl)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
@@ -227,47 +208,26 @@ function SettingsPage() {
 
         <Card>
           <h3 className="text-sm font-medium text-muted">Link de agendamiento</h3>
-          <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex-1">
-              <Input id="slug" label="Slug" value={slugInput} onChange={(e) => setSlugInput(e.target.value)} />
-              <p className="mt-1 text-xs text-muted">
-                Cambiar el link hace que el anterior deje de funcionar — comparte el nuevo con tus clientes.
-              </p>
-              {slugInput !== barbershop?.slug && (
-                <div className="mt-2 flex items-center gap-3">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={handleSlugSave}
-                    disabled={slugMutation.isPending || !slugInput.trim()}
-                  >
-                    {slugMutation.isPending ? 'Guardando...' : 'Guardar link'}
-                  </Button>
-                  {slugSaved && <span className="text-sm text-success">Guardado</span>}
-                </div>
-              )}
-              {slugError && <p className="mt-2 text-xs text-danger">{slugError}</p>}
-              <div className="mt-3 flex items-center gap-2 rounded-lg border border-border bg-surface-2 px-3.5 py-2.5">
-                <span className="min-w-0 flex-1 truncate text-sm text-muted">{bookingUrl}</span>
-                <button
+          <div className="mt-4">
+            <Input id="slug" label="Slug" value={slugInput} onChange={(e) => setSlugInput(e.target.value)} />
+            <p className="mt-1 text-xs text-muted">
+              Cambiar el link hace que el anterior deje de funcionar — comparte el nuevo con tus clientes. Para ver
+              y compartir el link actual con su código QR, ve al Dashboard.
+            </p>
+            {slugInput !== barbershop?.slug && (
+              <div className="mt-2 flex items-center gap-3">
+                <Button
                   type="button"
-                  onClick={handleCopy}
-                  aria-label="Copiar link"
-                  className="shrink-0 text-muted hover:text-ink"
+                  variant="secondary"
+                  onClick={handleSlugSave}
+                  disabled={slugMutation.isPending || !slugInput.trim()}
                 >
-                  {copied ? <Check size={15} className="text-success" /> : <Copy size={15} />}
-                </button>
-              </div>
-              <p className="mt-2 text-xs text-muted">
-                Comparte este link o el código QR con tus clientes para que agenden directamente.
-              </p>
-            </div>
-
-            {qrDataUrl && (
-              <div className="flex shrink-0 flex-col items-center gap-2 self-center rounded-lg border border-border bg-bg p-3">
-                <img src={qrDataUrl} alt="Código QR del link de agendamiento" width={120} height={120} />
+                  {slugMutation.isPending ? 'Guardando...' : 'Guardar link'}
+                </Button>
+                {slugSaved && <span className="text-sm text-success">Guardado</span>}
               </div>
             )}
+            {slugError && <p className="mt-2 text-xs text-danger">{slugError}</p>}
           </div>
         </Card>
 
